@@ -4,12 +4,14 @@ import { prisma } from "@/lib/prisma";
 // PATCH - Mark order as paid
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const order = await prisma.order.update({
       where: {
-        id: params.id,
+        id: id,
       },
       data: {
         paid: true,
