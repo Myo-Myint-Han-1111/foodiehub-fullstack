@@ -44,14 +44,6 @@ export default function Home() {
             >
               <Link href="/menu">View Menu</Link>
             </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/30 text-lg px-10 py-7 font-bold"
-            >
-              <Link href="/orders">My Orders</Link>
-            </Button>
           </div>
         </div>
       </section>

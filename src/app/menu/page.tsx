@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { MenuItem } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -128,8 +129,16 @@ export default function MenuPage() {
               <Card key={item.id} className="overflow-hidden">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    {/* Image */}
-                    <div className="text-5xl flex-shrink-0">{item.image}</div>
+                    {/* Image - CHANGED FROM EMOJI TO REAL IMAGE */}
+                    <div className="flex-shrink-0 w-24 h-24 relative rounded-lg overflow-hidden bg-gray-100">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
