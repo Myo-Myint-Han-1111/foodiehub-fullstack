@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle } from "lucide-react";
 
-export default function OrderPage() {
+function OrderPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [validating, setValidating] = useState(true);
@@ -125,5 +125,24 @@ export default function OrderPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function OrderPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardContent className="pt-12 pb-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <OrderPageContent />
+    </Suspense>
   );
 }
