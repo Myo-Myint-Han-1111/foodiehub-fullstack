@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Plus, Minus, AlertCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/ui/use-toast";
-import RoleGuard from "@/components/RoleGuard";
 
 const categories = [
   { id: "ALL", label: "All" },
@@ -25,7 +24,7 @@ const categories = [
   { id: "DRINKS", label: "Drinks" },
 ];
 
-function MenuPageContent() {
+export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
@@ -76,32 +75,38 @@ function MenuPageContent() {
   }, [menuItems, selectedCategory]);
 
   useEffect(() => {
-    if (hasValidSession) {
-      fetchMenuItems();
-    }
-  }, [fetchMenuItems, hasValidSession]);
+    fetchMenuItems();
+  }, [fetchMenuItems]);
 
   useEffect(() => {
     filterItems();
   }, [filterItems]);
 
-  function getItemQuantity(itemId: string): number {
-    const cartItem = items.find((item) => item.id === itemId);
-    return cartItem?.quantity || 0;
-  }
-
   function handleAdd(item: MenuItem) {
     addItem(item);
+    toast({
+      title: "Added to cart",
+      description: `${item.name} added to your order`,
+    });
   }
 
   function handleDecrease(itemId: string) {
-    const quantity = getItemQuantity(itemId);
-    if (quantity > 0) {
-      updateQuantity(itemId, quantity - 1);
+    const cartItem = items.find((i) => i.id === itemId);
+    if (cartItem) {
+      if (cartItem.quantity > 1) {
+        updateQuantity(itemId, cartItem.quantity - 1);
+      } else {
+        updateQuantity(itemId, 0);
+      }
     }
   }
 
-  // Show blocked message if no valid session
+  function getItemQuantity(itemId: string): number {
+    const cartItem = items.find((i) => i.id === itemId);
+    return cartItem?.quantity || 0;
+  }
+
+  // Show warning if no valid QR session
   if (!hasValidSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
@@ -112,12 +117,12 @@ function MenuPageContent() {
               QR Code Required
             </h2>
             <p className="text-gray-600 mb-8">
-              Please scan a QR code from the restaurant to access the menu and
-              place orders.
+              Please scan a QR code from the restaurant to start ordering.
             </p>
             <Button
               onClick={() => router.push("/")}
-              className="w-full bg-orange-600 hover:bg-orange-700"
+              variant="outline"
+              className="w-full"
             >
               Back to Home
             </Button>
@@ -130,95 +135,98 @@ function MenuPageContent() {
   if (loading) {
     return (
       <div className="container py-10">
-        <div className="text-center">Loading menu...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading menu...</p>
+        </div>
       </div>
     );
   }
 
-  const orderType = sessionStorage.getItem("orderType");
-  const tableNumber = sessionStorage.getItem("tableNumber");
-
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Header with Order Type Badge */}
-      <div className="bg-white border-b shadow-sm sticky top-0 z-10">
-        <div className="container px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Menu</h1>
-            {orderType === "dine-in" && tableNumber ? (
-              <Badge className="bg-orange-100 text-orange-700 text-sm px-3 py-1">
-                🪑 Table {tableNumber}
-              </Badge>
-            ) : (
-              <Badge className="bg-blue-100 text-blue-700 text-sm px-3 py-1">
-                📦 Takeaway
-              </Badge>
-            )}
-          </div>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg sticky top-0 z-10">
+        <div className="container px-4 py-6">
+          <h1 className="text-3xl font-bold">Our Menu</h1>
+          <p className="text-orange-100 mt-1">Choose your favorite dishes</p>
         </div>
       </div>
 
-      {/* Categories */}
-      <div className="bg-white border-b sticky top-[73px] z-10">
-        <div className="overflow-x-auto">
-          <div className="flex gap-2 px-4 py-3 min-w-max">
-            {categories.map((category) => (
-              <Button
-                key={category.id}
-                variant={
-                  selectedCategory === category.id ? "default" : "outline"
-                }
-                onClick={() => setSelectedCategory(category.id)}
-                className="whitespace-nowrap"
+      <div className="container px-4 py-6">
+        {/* Category Filters */}
+        <div className="mb-8 overflow-x-auto">
+          <div className="flex gap-3 pb-2">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+                  selectedCategory === cat.id
+                    ? "bg-orange-600 text-white shadow-lg scale-105"
+                    : "bg-white text-gray-700 hover:bg-gray-100"
+                }`}
               >
-                {category.label}
-              </Button>
+                {cat.label}
+              </button>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Menu Items */}
-      <div className="container px-4 py-6">
-        <div className="space-y-3">
+        {/* Menu Items Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => {
             const quantity = getItemQuantity(item.id);
-            return (
-              <Card key={item.id} className="overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    {/* Image */}
-                    <div className="flex-shrink-0 w-24 h-24 relative rounded-lg overflow-hidden bg-gray-100">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        sizes="96px"
-                      />
-                    </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg">{item.name}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-1">
-                        {item.description}
-                      </p>
-                      <div className="mt-2 flex items-center gap-3">
-                        <Badge variant="secondary" className="text-xs">
-                          {item.prepTime}
+            return (
+              <Card
+                key={item.id}
+                className="overflow-hidden hover:shadow-xl transition-shadow"
+              >
+                <CardContent className="p-0">
+                  <div className="relative h-48 bg-gray-200">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                    {!item.available && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Badge variant="destructive" className="text-lg">
+                          Unavailable
                         </Badge>
-                        <p className="text-xl font-bold text-orange-600">
-                          ${item.price.toFixed(2)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg line-clamp-1">
+                          {item.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                          {item.description}
                         </p>
                       </div>
                     </div>
 
-                    {/* Add/Remove Buttons */}
-                    <div className="flex-shrink-0">
+                    <div className="flex items-center justify-between mt-4">
+                      <div>
+                        <p className="text-2xl font-black text-orange-600">
+                          ${item.price.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          âš¡ {item.prepTime}
+                        </p>
+                      </div>
+
                       {quantity === 0 ? (
                         <Button
                           onClick={() => handleAdd(item)}
+                          disabled={!item.available}
                           className="bg-orange-600 hover:bg-orange-700 h-10 w-10 p-0"
                         >
                           <Plus className="h-5 w-5" />
@@ -275,13 +283,5 @@ function MenuPageContent() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function MenuPage() {
-  return (
-    <RoleGuard allowedRoles={["CUSTOMER"]}>
-      <MenuPageContent />
-    </RoleGuard>
   );
 }
