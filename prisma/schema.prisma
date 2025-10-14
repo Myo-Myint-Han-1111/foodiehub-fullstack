@@ -13,7 +13,7 @@ model User {
   password  String
   name      String
   phone     String?
-  role      Role     @default(USER)
+  role      Role     @default(CUSTOMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -39,8 +39,10 @@ model MenuItem {
 
 model Order {
   id          String      @id @default(cuid())
+  orderNumber Int         @default(autoincrement())
   userId      String?
-  tableNumber String
+  orderType   OrderType   @default(DINEIN)
+  tableNumber String?
   subtotal    Float       @default(0)
   tax         Float       @default(0)
   deliveryFee Float       @default(0)
@@ -54,6 +56,8 @@ model Order {
   items     OrderItem[]
   address   Address?    @relation(fields: [addressId], references: [id])
   addressId String?
+
+  @@index([orderNumber])
 }
 
 model OrderItem {
@@ -84,7 +88,9 @@ model Address {
 }
 
 enum Role {
-  USER
+  CUSTOMER
+  KITCHEN
+  COUNTER
   ADMIN
 }
 
@@ -97,6 +103,11 @@ enum Category {
   DESSERTS
   APPETIZERS
   DRINKS
+}
+
+enum OrderType {
+  DINEIN
+  TAKEAWAY
 }
 
 enum OrderStatus {

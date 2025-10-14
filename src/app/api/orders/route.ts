@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// Define the type for order items
 interface OrderItemInput {
   menuItemId: string;
   name: string;
@@ -8,32 +9,58 @@ interface OrderItemInput {
   price: number;
 }
 
-// POST - Create new order
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { tableNumber, items, total } = body;
+interface OrderRequestBody {
+  orderType: string;
+  tableNumber?: string;
+  items: OrderItemInput[];
+  total: number;
+}
 
-    if (!tableNumber || !items || items.length === 0) {
+export async function POST(req: NextRequest) {
+  try {
+    const { orderType, tableNumber, items, total }: OrderRequestBody =
+      await req.json();
+
+    // Validate order type
+    if (!orderType || (orderType !== "dine-in" && orderType !== "takeaway")) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "Invalid order type" },
         { status: 400 }
       );
     }
 
-    // Create order with items
+    // Validate table number for dine-in
+    if (orderType === "dine-in" && !tableNumber) {
+      return NextResponse.json(
+        { success: false, error: "Table number required for dine-in" },
+        { status: 400 }
+      );
+    }
+
+    // Validate items
+    if (!items || items.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Order must contain at least one item" },
+        { status: 400 }
+      );
+    }
+
+    // Convert order type to enum format
+    const orderTypeEnum = orderType === "dine-in" ? "DINEIN" : "TAKEAWAY";
+
+    // Create order
     const order = await prisma.order.create({
       data: {
-        tableNumber: tableNumber.toString(),
+        orderType: orderTypeEnum,
+        tableNumber: orderType === "dine-in" ? tableNumber : null,
         total: total,
-        status: "PENDING",
-        paid: false,
+        subtotal: total,
         items: {
           create: items.map((item: OrderItemInput) => ({
+            menuItemId: item.menuItemId,
             name: item.name,
             quantity: item.quantity,
             price: item.price,
-            menuItemId: item.menuItemId,
           })),
         },
       },
@@ -47,7 +74,7 @@ export async function POST(request: NextRequest) {
       data: order,
     });
   } catch (error) {
-    console.error("Order creation error:", error);
+    console.error("Create order error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to create order" },
       { status: 500 }
@@ -55,16 +82,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Get orders (for customer order history)
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const tableNumber = searchParams.get("tableNumber");
-
-    const whereClause = tableNumber ? { tableNumber } : {};
-
     const orders = await prisma.order.findMany({
-      where: whereClause,
       include: {
         items: true,
       },
@@ -78,7 +98,7 @@ export async function GET(request: NextRequest) {
       data: orders,
     });
   } catch (error) {
-    console.error("Fetch orders error:", error);
+    console.error("Get orders error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch orders" },
       { status: 500 }

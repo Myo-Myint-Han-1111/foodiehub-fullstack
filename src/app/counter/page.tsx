@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DollarSign, Search, CheckCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import RoleGuard from "@/components/RoleGuard";
 
 interface OrderItem {
   id: string;
@@ -17,7 +18,9 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  tableNumber: string;
+  orderNumber: number;
+  orderType: string;
+  tableNumber: string | null;
   items: OrderItem[];
   total: number;
   status: string;
@@ -25,9 +28,9 @@ interface Order {
   paid: boolean;
 }
 
-export default function CounterPage() {
+function CounterPageContent() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [searchTable, setSearchTable] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -91,8 +94,12 @@ export default function CounterPage() {
   );
   const paidOrders = orders.filter((order) => order.paid);
 
-  const filteredDeliveredOrders = searchTable
-    ? deliveredOrders.filter((order) => order.tableNumber.includes(searchTable))
+  const filteredDeliveredOrders = searchQuery
+    ? deliveredOrders.filter((order) =>
+        order.orderType === "DINEIN"
+          ? order.tableNumber?.includes(searchQuery)
+          : order.orderNumber.toString().includes(searchQuery)
+      )
     : deliveredOrders;
 
   const totalUnpaid = deliveredOrders.reduce(
@@ -160,9 +167,9 @@ export default function CounterPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input
                 type="text"
-                placeholder="Search by table number..."
-                value={searchTable}
-                onChange={(e) => setSearchTable(e.target.value)}
+                placeholder="Search by table number or order number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 text-lg"
               />
             </div>
@@ -180,8 +187,8 @@ export default function CounterPage() {
             <Card>
               <CardContent className="p-12 text-center">
                 <p className="text-gray-500 text-lg">
-                  {searchTable
-                    ? "No matching tables"
+                  {searchQuery
+                    ? "No matching orders"
                     : "No orders awaiting payment"}
                 </p>
               </CardContent>
@@ -195,15 +202,19 @@ export default function CounterPage() {
                 >
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-4xl font-black">
-                        Table {order.tableNumber}
+                      <div className="text-3xl font-black">
+                        {order.orderType === "DINEIN" ? (
+                          <>🪑 Table {order.tableNumber}</>
+                        ) : (
+                          <>📦 #{order.orderNumber}</>
+                        )}
                       </div>
                       <Badge className="bg-orange-600 text-white text-lg px-4 py-2">
                         UNPAID
                       </Badge>
                     </div>
                     <p className="text-sm text-gray-600 mb-4">
-                      Ordered: {new Date(order.createdAt).toLocaleTimeString()}
+                      {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
 
                     <div className="space-y-2 mb-6">
@@ -227,8 +238,8 @@ export default function CounterPage() {
 
                     <div className="border-t-4 border-orange-600 pt-4 mb-6">
                       <div className="flex justify-between items-center">
-                        <span className="text-2xl font-bold">TOTAL:</span>
-                        <span className="text-4xl font-black text-orange-600">
+                        <span className="text-xl font-bold">TOTAL:</span>
+                        <span className="text-3xl font-black text-green-600">
                           ${order.total.toFixed(2)}
                         </span>
                       </div>
@@ -248,56 +259,40 @@ export default function CounterPage() {
           )}
         </div>
 
-        {/* Paid Orders Today */}
+        {/* Paid Orders */}
         <div>
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
             <CheckCircle className="h-6 w-6 text-green-600" />
-            Paid Today ({paidOrders.length})
+            Paid Orders Today ({paidOrders.length})
           </h2>
 
           {paidOrders.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500 text-lg">
-                  No paid orders yet today
-                </p>
+                <p className="text-gray-500 text-lg">No paid orders yet</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
               {paidOrders.map((order) => (
-                <Card key={order.id} className="border-2 border-green-500">
+                <Card key={order.id} className="bg-green-50 border-green-200">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-2xl font-black">
-                        Table {order.tableNumber}
+                      <p className="font-bold">
+                        {order.orderType === "DINEIN" ? (
+                          <>🪑 Table {order.tableNumber}</>
+                        ) : (
+                          <>📦 #{order.orderNumber}</>
+                        )}
                       </p>
                       <Badge className="bg-green-600 text-white">PAID</Badge>
                     </div>
-                    <p className="text-xs text-gray-600 mb-3">
+                    <p className="text-xl font-bold text-green-600">
+                      ${order.total.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
-                    <div className="space-y-1 text-sm mb-3">
-                      {order.items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between text-gray-700"
-                        >
-                          <span className="truncate">{item.name}</span>
-                          <span className="font-semibold ml-2">
-                            x{item.quantity}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="pt-3 border-t">
-                      <div className="flex justify-between font-bold">
-                        <span>Total:</span>
-                        <span className="text-green-600">
-                          ${order.total.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -306,5 +301,13 @@ export default function CounterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CounterPage() {
+  return (
+    <RoleGuard allowedRoles={["COUNTER"]}>
+      <CounterPageContent />
+    </RoleGuard>
   );
 }

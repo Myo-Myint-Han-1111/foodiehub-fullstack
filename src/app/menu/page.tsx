@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { MenuItem } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Plus, Minus } from "lucide-react";
+import { ShoppingCart, Plus, Minus, AlertCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/ui/use-toast";
+import RoleGuard from "@/components/RoleGuard";
 
 const categories = [
   { id: "ALL", label: "All" },
@@ -23,14 +25,28 @@ const categories = [
   { id: "DRINKS", label: "Drinks" },
 ];
 
-export default function MenuPage() {
+function MenuPageContent() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [hasValidSession, setHasValidSession] = useState(false);
+  const router = useRouter();
 
   const { items, addItem, updateQuantity, itemCount, total } = useCart();
   const { toast } = useToast();
+
+  // Check for valid QR session
+  useEffect(() => {
+    const orderType = sessionStorage.getItem("orderType");
+
+    if (!orderType) {
+      // No valid session - redirect to home
+      setHasValidSession(false);
+    } else {
+      setHasValidSession(true);
+    }
+  }, []);
 
   const fetchMenuItems = useCallback(async () => {
     try {
@@ -60,8 +76,10 @@ export default function MenuPage() {
   }, [menuItems, selectedCategory]);
 
   useEffect(() => {
-    fetchMenuItems();
-  }, [fetchMenuItems]);
+    if (hasValidSession) {
+      fetchMenuItems();
+    }
+  }, [fetchMenuItems, hasValidSession]);
 
   useEffect(() => {
     filterItems();
@@ -83,6 +101,32 @@ export default function MenuPage() {
     }
   }
 
+  // Show blocked message if no valid session
+  if (!hasValidSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-2 border-orange-200">
+          <CardContent className="pt-12 pb-12 text-center">
+            <AlertCircle className="h-16 w-16 text-orange-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">
+              QR Code Required
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Please scan a QR code from the restaurant to access the menu and
+              place orders.
+            </p>
+            <Button
+              onClick={() => router.push("/")}
+              className="w-full bg-orange-600 hover:bg-orange-700"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="container py-10">
@@ -91,12 +135,26 @@ export default function MenuPage() {
     );
   }
 
+  const orderType = sessionStorage.getItem("orderType");
+  const tableNumber = sessionStorage.getItem("tableNumber");
+
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Header */}
+      {/* Header with Order Type Badge */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="container px-4 py-4">
-          <h1 className="text-2xl font-bold text-center">Menu</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Menu</h1>
+            {orderType === "dine-in" && tableNumber ? (
+              <Badge className="bg-orange-100 text-orange-700 text-sm px-3 py-1">
+                🪑 Table {tableNumber}
+              </Badge>
+            ) : (
+              <Badge className="bg-blue-100 text-blue-700 text-sm px-3 py-1">
+                📦 Takeaway
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -129,7 +187,7 @@ export default function MenuPage() {
               <Card key={item.id} className="overflow-hidden">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    {/* Image - CHANGED FROM EMOJI TO REAL IMAGE */}
+                    {/* Image */}
                     <div className="flex-shrink-0 w-24 h-24 relative rounded-lg overflow-hidden bg-gray-100">
                       <Image
                         src={item.image}
@@ -217,5 +275,13 @@ export default function MenuPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MenuPage() {
+  return (
+    <RoleGuard allowedRoles={["CUSTOMER"]}>
+      <MenuPageContent />
+    </RoleGuard>
   );
 }

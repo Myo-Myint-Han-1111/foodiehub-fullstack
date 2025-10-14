@@ -6,42 +6,57 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Delete in correct order (respecting foreign key constraints)
   console.log("Deleting existing data...");
   await prisma.orderItem.deleteMany({});
   await prisma.order.deleteMany({});
   await prisma.address.deleteMany({});
   await prisma.menuItem.deleteMany({});
   await prisma.user.deleteMany({});
-
   console.log("✅ Existing data cleared");
 
-  // Create admin user
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  // Create Admin user
   await prisma.user.create({
     data: {
       email: "admin@foodiehub.com",
-      password: hashedPassword,
+      password: await bcrypt.hash("admin123", 10),
       name: "Admin User",
       role: "ADMIN",
     },
   });
 
-  // Create regular user
-  const userPassword = await bcrypt.hash("user123", 10);
+  // Create Customer user
   await prisma.user.create({
     data: {
-      email: "user@foodiehub.com",
-      password: userPassword,
-      name: "John Doe",
-      phone: "555-0123",
-      role: "USER",
+      email: "customer@foodiehub.com",
+      password: await bcrypt.hash("customer123", 10),
+      name: "John Customer",
+      phone: "555-0001",
+      role: "CUSTOMER",
+    },
+  });
+
+  // Create Kitchen user
+  await prisma.user.create({
+    data: {
+      email: "kitchen@foodiehub.com",
+      password: await bcrypt.hash("kitchen123", 10),
+      name: "Kitchen Staff",
+      role: "KITCHEN",
+    },
+  });
+
+  // Create Counter user
+  await prisma.user.create({
+    data: {
+      email: "counter@foodiehub.com",
+      password: await bcrypt.hash("counter123", 10),
+      name: "Counter Staff",
+      role: "COUNTER",
     },
   });
 
   console.log("✅ Users created");
 
-  // Create menu items with real food images from Unsplash
   const menuItems = [
     {
       name: "Margherita Pizza",
@@ -207,24 +222,15 @@ async function main() {
   ];
 
   for (const item of menuItems) {
-    await prisma.menuItem.create({
-      data: {
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        category: item.category,
-        image: item.image,
-        rating: item.rating,
-        prepTime: item.prepTime,
-        available: true,
-      },
-    });
+    await prisma.menuItem.create({ data: { ...item, available: true } });
   }
 
   console.log("✅ Menu items created");
   console.log("\n🎉 Database seeded successfully!");
-  console.log("📧 Admin: admin@foodiehub.com / admin123");
-  console.log("📧 User: user@foodiehub.com / user123");
+  console.log("👑 Admin: admin@foodiehub.com / admin123");
+  console.log("📧 Customer: customer@foodiehub.com / customer123");
+  console.log("👨‍🍳 Kitchen: kitchen@foodiehub.com / kitchen123");
+  console.log("💰 Counter: counter@foodiehub.com / counter123");
 }
 
 main()

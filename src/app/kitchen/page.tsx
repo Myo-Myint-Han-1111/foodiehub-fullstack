@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import RoleGuard from "@/components/RoleGuard";
 
 interface OrderItem {
   id: string;
@@ -16,14 +17,16 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  tableNumber: string;
+  orderNumber: number;
+  orderType: string;
+  tableNumber: string | null;
   items: OrderItem[];
   total: number;
   status: string;
   createdAt: string;
 }
 
-export default function KitchenPage() {
+function KitchenPageContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -158,35 +161,19 @@ export default function KitchenPage() {
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
                   </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-3 mb-6">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2 mb-4">
                       {order.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex justify-between items-center bg-gray-50 p-3 rounded-lg"
+                          className="flex justify-between items-center"
                         >
-                          <div>
-                            <p className="font-bold text-lg">{item.name}</p>
-                            <p className="text-sm text-gray-600">
-                              ${item.price.toFixed(2)} each
-                            </p>
-                          </div>
-                          <div className="text-2xl font-black text-orange-600">
-                            x{item.quantity}
-                          </div>
+                          <span className="font-medium">
+                            {item.quantity}x {item.name}
+                          </span>
                         </div>
                       ))}
                     </div>
-
-                    <div className="border-t pt-4 mb-4">
-                      <div className="flex justify-between text-xl font-bold">
-                        <span>Total:</span>
-                        <span className="text-orange-600">
-                          ${order.total.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
                     <Button
                       onClick={() => markAsDelivered(order.id)}
                       className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg font-bold"
@@ -201,55 +188,46 @@ export default function KitchenPage() {
           )}
         </div>
 
-        {/* Delivered Orders (Today) */}
+        {/* Delivered Orders */}
         <div>
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
             <CheckCircle className="h-6 w-6 text-green-600" />
-            Delivered Today ({deliveredOrders.length})
+            Delivered Orders ({deliveredOrders.length})
           </h2>
 
           {deliveredOrders.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500 text-lg">
-                  No delivered orders yet today
-                </p>
+                <p className="text-gray-500 text-lg">No delivered orders yet</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {deliveredOrders.map((order) => (
-                <Card key={order.id} className="border-2 border-green-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-2xl font-black">
+                <Card
+                  key={order.id}
+                  className="border-2 border-green-200 bg-green-50/50"
+                >
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-2xl font-bold">
                         Table {order.tableNumber}
-                      </p>
-                      <Badge className="bg-green-600 text-white">DONE</Badge>
+                      </CardTitle>
+                      <Badge className="bg-green-600 text-white">
+                        DELIVERED
+                      </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">
+                    <p className="text-sm text-gray-600">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
-                    <div className="space-y-1 text-sm">
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
                       {order.items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between text-gray-700"
-                        >
-                          <span>{item.name}</span>
-                          <span className="font-semibold">
-                            x{item.quantity}
-                          </span>
+                        <div key={item.id} className="text-sm">
+                          {item.quantity}x {item.name}
                         </div>
                       ))}
-                    </div>
-                    <div className="mt-3 pt-3 border-t">
-                      <div className="flex justify-between font-bold">
-                        <span>Total:</span>
-                        <span className="text-green-600">
-                          ${order.total.toFixed(2)}
-                        </span>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -259,5 +237,13 @@ export default function KitchenPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function KitchenPage() {
+  return (
+    <RoleGuard allowedRoles={["KITCHEN"]}>
+      <KitchenPageContent />
+    </RoleGuard>
   );
 }

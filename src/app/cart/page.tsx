@@ -1,36 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Minus, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  ShoppingCart,
+  Minus,
+  Plus,
+  Trash2,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function CartPage() {
-  const [tableNumber, setTableNumber] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasValidSession, setHasValidSession] = useState(false);
+  const [orderType, setOrderType] = useState<string | null>(null);
+  const [tableNumber, setTableNumber] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   const { items, removeItem, updateQuantity, subtotal, total, clearCart } =
     useCart();
 
-  async function handleConfirmOrder() {
-    if (!tableNumber.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter your table number",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Check for valid QR session
+  useEffect(() => {
+    const type = sessionStorage.getItem("orderType");
+    const table = sessionStorage.getItem("tableNumber");
 
+    if (!type) {
+      setHasValidSession(false);
+    } else {
+      setHasValidSession(true);
+      setOrderType(type);
+      setTableNumber(table);
+    }
+  }, []);
+
+  async function handleConfirmOrder() {
     if (items.length === 0) {
       toast({
         title: "Error",
@@ -49,7 +63,8 @@ export default function CartPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          tableNumber: tableNumber.trim(),
+          orderType: orderType,
+          tableNumber: tableNumber || null,
           items: items.map((item) => ({
             menuItemId: item.id,
             name: item.name,
@@ -87,6 +102,31 @@ export default function CartPage() {
     }
   }
 
+  // Show blocked message if no valid session
+  if (!hasValidSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-2 border-orange-200">
+          <CardContent className="pt-12 pb-12 text-center">
+            <AlertCircle className="h-16 w-16 text-orange-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">
+              QR Code Required
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Please scan a QR code from the restaurant to place orders.
+            </p>
+            <Button
+              onClick={() => router.push("/")}
+              className="w-full bg-orange-600 hover:bg-orange-700"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="container py-16">
@@ -116,28 +156,36 @@ export default function CartPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">Your Cart</h1>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">Your Cart</h1>
+          </div>
+          {orderType === "dine-in" && tableNumber ? (
+            <Badge className="bg-orange-100 text-orange-700">
+              🪑 Table {tableNumber}
+            </Badge>
+          ) : (
+            <Badge className="bg-blue-100 text-blue-700">📦 Takeaway</Badge>
+          )}
         </div>
       </div>
 
       <div className="container px-4 py-6 max-w-2xl mx-auto">
-        {/* Table Number Input */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <Label
-              htmlFor="tableNumber"
-              className="text-lg font-bold mb-2 block"
-            >
-              Table Number *
-            </Label>
-            <Input
-              id="tableNumber"
-              type="text"
-              placeholder="Enter your table number (e.g., 5)"
-              value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
-              className="text-lg"
-            />
+        {/* Order Type Info */}
+        <Card className="mb-6 border-2 border-orange-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">
+                {orderType === "dine-in" ? "🪑" : "📦"}
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Ordering for:</p>
+                <p className="font-bold text-lg">
+                  {orderType === "dine-in"
+                    ? `Table ${tableNumber}`
+                    : "Takeaway (Pick up at counter)"}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -149,7 +197,16 @@ export default function CartPage() {
               {items.map((item) => (
                 <div key={item.id}>
                   <div className="flex items-start gap-4">
-                    <div className="text-4xl flex-shrink-0">{item.image}</div>
+                    {/* Image */}
+                    <div className="flex-shrink-0 w-20 h-20 relative rounded-lg overflow-hidden bg-gray-100">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold">{item.name}</h3>
@@ -227,7 +284,7 @@ export default function CartPage() {
         {/* Confirm Button */}
         <Button
           onClick={handleConfirmOrder}
-          disabled={loading || !tableNumber.trim()}
+          disabled={loading}
           className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-6 text-lg font-bold"
         >
           {loading ? "Sending to Kitchen..." : "Confirm Order"}
