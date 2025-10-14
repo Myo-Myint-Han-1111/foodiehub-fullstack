@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET - Get all orders for kitchen display
+// GET - Get today's orders for kitchen display (24 hours)
 export async function GET() {
   try {
+    // Get orders from last 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     const orders = await prisma.order.findMany({
+      where: {
+        createdAt: {
+          gte: twentyFourHoursAgo,
+        },
+      },
       include: {
         items: true,
       },

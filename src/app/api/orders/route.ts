@@ -18,11 +18,18 @@ interface OrderRequestBody {
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderType, tableNumber, items, total }: OrderRequestBody =
-      await req.json();
+    const body: OrderRequestBody = await req.json();
+    const { orderType, tableNumber, items, total } = body;
+
+    console.log("📥 Received order request:");
+    console.log("  - Order Type:", orderType);
+    console.log("  - Table Number:", tableNumber);
+    console.log("  - Items Count:", items?.length);
+    console.log("  - Total:", total);
 
     // Validate order type
     if (!orderType || (orderType !== "dine-in" && orderType !== "takeaway")) {
+      console.error("❌ Invalid order type:", orderType);
       return NextResponse.json(
         { success: false, error: "Invalid order type" },
         { status: 400 }
@@ -31,6 +38,7 @@ export async function POST(req: NextRequest) {
 
     // Validate table number for dine-in
     if (orderType === "dine-in" && !tableNumber) {
+      console.error("❌ Table number missing for dine-in order");
       return NextResponse.json(
         { success: false, error: "Table number required for dine-in" },
         { status: 400 }
@@ -39,6 +47,7 @@ export async function POST(req: NextRequest) {
 
     // Validate items
     if (!items || items.length === 0) {
+      console.error("❌ No items in order");
       return NextResponse.json(
         { success: false, error: "Order must contain at least one item" },
         { status: 400 }
@@ -47,6 +56,8 @@ export async function POST(req: NextRequest) {
 
     // Convert order type to enum format
     const orderTypeEnum = orderType === "dine-in" ? "DINEIN" : "TAKEAWAY";
+
+    console.log("💾 Creating order in database...");
 
     // Create order
     const order = await prisma.order.create({
@@ -57,7 +68,7 @@ export async function POST(req: NextRequest) {
         subtotal: total,
         items: {
           create: items.map((item: OrderItemInput) => ({
-            menuItemId: item.menuItemId,
+            menuItemId: item.menuItemId || null,
             name: item.name,
             quantity: item.quantity,
             price: item.price,
@@ -69,22 +80,95 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log("✅ Order created successfully:", order.id);
+
     return NextResponse.json({
       success: true,
       data: order,
     });
   } catch (error) {
-    console.error("Create order error:", error);
+    console.error("❌ Create order error:", error);
+
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+
+    if (typeof error === "object" && error !== null && "code" in error) {
+      const prismaError = error as { code?: string; meta?: unknown };
+      console.error("Prisma error code:", prismaError.code);
+      console.error("Prisma error meta:", prismaError.meta);
+    }
+
     return NextResponse.json(
-      { success: false, error: "Failed to create order" },
+      {
+        success: false,
+        error: "Failed to create order",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const timeFilter = searchParams.get("timeFilter"); // "2h", "24h", "30d", "all"
+    const tableNumber = searchParams.get("tableNumber"); // For customer filtering
+    const orderType = searchParams.get("orderType"); // "DINEIN" or "TAKEAWAY"
+
+    // Calculate time filters
+    const now = new Date();
+    let createdAfter: Date | undefined;
+
+    switch (timeFilter) {
+      case "2h":
+        createdAfter = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+        break;
+      case "24h":
+        createdAfter = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+        break;
+      case "30d":
+        createdAfter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+        break;
+      case "all":
+      default:
+        createdAfter = undefined; // No filter
+        break;
+    }
+
+    // Build where clause
+    const whereClause: {
+      createdAt?: { gte: Date };
+      tableNumber?: string;
+      orderType?: "DINEIN" | "TAKEAWAY";
+    } = {};
+
+    if (createdAfter) {
+      whereClause.createdAt = {
+        gte: createdAfter,
+      };
+    }
+
+    if (tableNumber) {
+      whereClause.tableNumber = tableNumber;
+      whereClause.orderType = "DINEIN";
+    }
+
+    if (orderType && !tableNumber) {
+      whereClause.orderType = orderType as "DINEIN" | "TAKEAWAY";
+    }
+
+    console.log("📋 Fetching orders with filters:", {
+      timeFilter,
+      tableNumber,
+      orderType,
+      createdAfter,
+    });
+
     const orders = await prisma.order.findMany({
+      where: whereClause,
       include: {
         items: true,
       },
@@ -93,12 +177,19 @@ export async function GET() {
       },
     });
 
+    console.log(`✅ Found ${orders.length} orders`);
+
     return NextResponse.json({
       success: true,
       data: orders,
     });
   } catch (error) {
-    console.error("Get orders error:", error);
+    console.error("❌ Get orders error:", error);
+
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+    }
+
     return NextResponse.json(
       { success: false, error: "Failed to fetch orders" },
       { status: 500 }

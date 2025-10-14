@@ -45,7 +45,8 @@ export default function Header() {
         return [
           { href: "/admin", label: "User Management" },
           { href: "/admin/qr-codes", label: "QR Codes" },
-          { href: "/orders", label: "All Orders" },
+          { href: "/admin/orders", label: "Orders" },
+          { href: "/admin/analytics", label: "Analytics" },
         ];
       default:
         return [];

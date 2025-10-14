@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET - Get all delivered orders for counter (payment view)
+// GET - Get last 30 days orders for counter (payment view)
 export async function GET() {
   try {
+    // Get orders from last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
     const orders = await prisma.order.findMany({
+      where: {
+        createdAt: {
+          gte: thirtyDaysAgo,
+        },
+      },
       include: {
         items: true,
       },

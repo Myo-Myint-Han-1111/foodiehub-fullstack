@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { QrCode, Users, UtensilsCrossed } from "lucide-react";
+import { QrCode, UtensilsCrossed } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -59,25 +58,6 @@ export default function LandingPage() {
                       Scan the <strong>QR code at the counter</strong> to order
                       for pickup. We wll notify you when your order is ready!
                     </p>
-                  </div>
-                </div>
-
-                {/* Staff Login */}
-                <div className="flex items-start gap-4 text-left border-t pt-6 mt-6">
-                  <div className="bg-purple-100 text-purple-700 rounded-full w-12 h-12 flex items-center justify-center font-bold flex-shrink-0 text-xl">
-                    <Users className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg mb-2">Staff Access</h3>
-                    <p className="text-gray-600 mb-3">
-                      Kitchen, counter, and admin staff can access the system
-                      here:
-                    </p>
-                    <Link href="/login">
-                      <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                        Staff Login →
-                      </button>
-                    </Link>
                   </div>
                 </div>
               </div>

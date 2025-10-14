@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign,
   ShoppingBag,
@@ -33,59 +34,69 @@ interface AnalyticsData {
   period: string;
 }
 
-function AnalyticsPageContent() {
+function AdminAnalyticsContent() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<"daily" | "monthly" | "yearly">("daily");
   const { toast } = useToast();
 
-  const fetchAnalytics = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Counter only sees today's analytics
-      const response = await fetch(`/api/analytics?period=daily`);
-      const result = await response.json();
+  const fetchAnalytics = useCallback(
+    async (selectedPeriod: string) => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/analytics?period=${selectedPeriod}`);
+        const result = await response.json();
 
-      if (result.success) {
-        setData(result.data);
-      } else {
+        if (result.success) {
+          setData(result.data);
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load analytics",
+            variant: "destructive",
+          });
+        }
+      } catch {
         toast({
           title: "Error",
           description: "Failed to load analytics",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to load analytics",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+    },
+    [toast]
+  );
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    fetchAnalytics(period);
+  }, [period, fetchAnalytics]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
           <div className="container px-4 py-6">
-            <h1 className="text-3xl font-bold">Today Sales Analytics</h1>
-            <p className="text-blue-100 mt-1">
+            <h1 className="text-3xl font-bold">Sales Analytics (Admin)</h1>
+            <p className="text-purple-100 mt-1">
               Track your restaurant performance
             </p>
           </div>
         </div>
 
         <div className="container px-4 py-6">
+          <Tabs value={period} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="daily">Today</TabsTrigger>
+              <TabsTrigger value="monthly">This Month</TabsTrigger>
+              <TabsTrigger value="yearly">This Year</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading analytics...</p>
             </div>
           </div>
@@ -105,84 +116,107 @@ function AnalyticsPageContent() {
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
         <div className="container px-4 py-6">
-          <h1 className="text-3xl font-bold">Today Sales Analytics</h1>
-          <p className="text-blue-100 mt-1">
+          <h1 className="text-3xl font-bold">Sales Analytics (Admin)</h1>
+          <p className="text-purple-100 mt-1">
             Track your restaurant performance
           </p>
         </div>
       </div>
 
       <div className="container px-4 py-6">
+        {/* Period Selector */}
+        <Tabs
+          value={period}
+          onValueChange={(v) => setPeriod(v as "daily" | "monthly" | "yearly")}
+          className="mb-6"
+        >
+          <TabsList>
+            <TabsTrigger value="daily">Today</TabsTrigger>
+            <TabsTrigger value="monthly">This Month</TabsTrigger>
+            <TabsTrigger value="yearly">This Year</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium text-gray-600">
                 Total Sales
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                ${data.summary.totalSales.toFixed(2)}
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-purple-600">
+                  ${data.summary.totalSales.toFixed(2)}
+                </div>
+                <DollarSign className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium text-gray-600">
                 Total Orders
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {data.summary.totalOrders}
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-blue-600">
+                  {data.summary.totalOrders}
+                </div>
+                <ShoppingBag className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium text-gray-600">
                 Paid Orders
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {data.summary.paidOrders}
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-green-600">
+                  {data.summary.paidOrders}
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <XCircle className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium text-gray-600">
                 Unpaid Orders
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {data.summary.unpaidOrders}
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-orange-600">
+                  {data.summary.unpaidOrders}
+                </div>
+                <XCircle className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium text-gray-600">
                 Avg Order Value
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                ${data.summary.averageOrderValue.toFixed(2)}
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-indigo-600">
+                  ${data.summary.averageOrderValue.toFixed(2)}
+                </div>
+                <TrendingUp className="h-8 w-8 text-indigo-600" />
               </div>
             </CardContent>
           </Card>
@@ -193,29 +227,29 @@ function AnalyticsPageContent() {
           {/* Sales Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Sales Over Time (Today)</CardTitle>
+              <CardTitle>Sales Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {data.chartData.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="text-sm text-gray-600 w-20">
-                      {item.date}
+                  <div key={index}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">{item.date}</span>
+                      <span className="text-sm font-bold text-purple-600">
+                        ${item.sales.toFixed(2)}
+                      </span>
                     </div>
-                    <div className="flex-1">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-green-500 h-8 rounded flex items-center px-2 text-white text-sm font-medium"
+                        className="bg-purple-600 h-2 rounded-full"
                         style={{
                           width: `${
-                            (item.sales /
-                              Math.max(...data.chartData.map((d) => d.sales))) *
+                            (item.sales / Math.max(...data.chartData.map((d) => d.sales))) *
                             100
                           }%`,
-                          minWidth: "60px",
+                          minWidth: "20px",
                         }}
-                      >
-                        ${item.sales.toFixed(2)}
-                      </div>
+                      ></div>
                     </div>
                   </div>
                 ))}
@@ -226,24 +260,20 @@ function AnalyticsPageContent() {
           {/* Orders Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Orders Over Time (Today)</CardTitle>
+              <CardTitle>Orders Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {data.chartData.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="text-sm text-gray-600 w-20">
-                      {item.date}
-                    </div>
-                    <div className="flex-1">
+                  <div key={index}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">{item.date}</span>
                       <div
-                        className="bg-blue-500 h-8 rounded flex items-center px-2 text-white text-sm font-medium"
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium"
                         style={{
                           width: `${
                             (item.orders /
-                              Math.max(
-                                ...data.chartData.map((d) => d.orders)
-                              )) *
+                              Math.max(...data.chartData.map((d) => d.orders))) *
                             100
                           }%`,
                           minWidth: "40px",
@@ -262,7 +292,7 @@ function AnalyticsPageContent() {
         {/* Top Selling Items */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Selling Items (Today)</CardTitle>
+            <CardTitle>Top Selling Items</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -272,7 +302,7 @@ function AnalyticsPageContent() {
                   className="flex items-center justify-between border-b pb-3"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="bg-orange-100 text-orange-700 rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                    <div className="bg-purple-100 text-purple-700 rounded-full w-8 h-8 flex items-center justify-center font-bold">
                       {index + 1}
                     </div>
                     <div>
@@ -298,10 +328,10 @@ function AnalyticsPageContent() {
   );
 }
 
-export default function AnalyticsPage() {
+export default function AdminAnalyticsPage() {
   return (
-    <RoleGuard allowedRoles={["COUNTER"]}>
-      <AnalyticsPageContent />
+    <RoleGuard allowedRoles={["ADMIN"]}>
+      <AdminAnalyticsContent />
     </RoleGuard>
   );
 }
