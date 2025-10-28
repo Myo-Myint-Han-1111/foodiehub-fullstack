@@ -159,36 +159,15 @@ export default function CartPage() {
           <div className="flex-1">
             <h1 className="text-2xl font-bold">Your Cart</h1>
           </div>
-          {orderType === "dine-in" && tableNumber ? (
-            <Badge className="bg-orange-100 text-orange-700">
+          {orderType === "dine-in" && tableNumber && (
+            <Badge variant="secondary" className="text-lg px-3 py-1">
               🪑 Table {tableNumber}
             </Badge>
-          ) : (
-            <Badge className="bg-blue-100 text-blue-700">📦 Takeaway</Badge>
           )}
         </div>
       </div>
 
-      <div className="container px-4 py-6 max-w-2xl mx-auto">
-        {/* Order Type Info */}
-        <Card className="mb-6 border-2 border-orange-200">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl">
-                {orderType === "dine-in" ? "🪑" : "📦"}
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Ordering for:</p>
-                <p className="font-bold text-lg">
-                  {orderType === "dine-in"
-                    ? `Table ${tableNumber}`
-                    : "Takeaway (Pick up at counter)"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="container px-4 py-6 max-w-2xl">
         {/* Cart Items */}
         <Card className="mb-6">
           <CardContent className="p-6">
@@ -196,64 +175,61 @@ export default function CartPage() {
             <div className="space-y-4">
               {items.map((item) => (
                 <div key={item.id}>
-                  <div className="flex items-start gap-4">
-                    {/* Image */}
-                    <div className="flex-shrink-0 w-20 h-20 relative rounded-lg overflow-hidden bg-gray-100">
+                  <div className="flex gap-4">
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
                       <Image
                         src={item.image}
                         alt={item.name}
                         fill
                         className="object-cover"
-                        sizes="80px"
+                        unoptimized
                       />
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold">{item.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        ${item.price.toFixed(2)} each
-                      </p>
-                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-lg">{item.name}</h3>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeItem(item.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeItem(item.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity - 1)
-                        }
-                        className="h-8 w-8"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="font-bold w-8 text-center">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity + 1)
-                        }
-                        className="h-8 w-8"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-between mt-3">
+                        <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              updateQuantity(item.id, item.quantity - 1)
+                            }
+                            className="h-8 w-8"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="font-bold w-8 text-center">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              updateQuantity(item.id, item.quantity + 1)
+                            }
+                            className="h-8 w-8"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-lg font-bold text-orange-600">
+                          ฿{(item.price * item.quantity).toFixed(0)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-lg font-bold text-orange-600">
-                      ${(item.price * item.quantity).toFixed(2)}
-                    </p>
                   </div>
 
                   <Separator className="mt-4" />
@@ -270,12 +246,12 @@ export default function CartPage() {
             <div className="space-y-3">
               <div className="flex justify-between text-lg">
                 <span>Subtotal</span>
-                <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                <span className="font-semibold">฿{subtotal.toFixed(0)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-xl font-bold">
                 <span>Total</span>
-                <span className="text-orange-600">${total.toFixed(2)}</span>
+                <span className="text-orange-600">฿{total.toFixed(0)}</span>
               </div>
             </div>
           </CardContent>
@@ -287,14 +263,8 @@ export default function CartPage() {
           disabled={loading}
           className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-6 text-lg font-bold"
         >
-          {loading ? "Sending to Kitchen..." : "Confirm Order"}
+          {loading ? "Placing order..." : "Confirm Order"}
         </Button>
-
-        <Link href="/menu">
-          <Button variant="outline" className="w-full mt-3 py-6 text-lg">
-            Add More Items
-          </Button>
-        </Link>
       </div>
     </div>
   );

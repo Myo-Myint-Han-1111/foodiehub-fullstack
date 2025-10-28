@@ -14,13 +14,13 @@ import { useToast } from "@/components/ui/use-toast";
 
 const categories = [
   { id: "ALL", label: "All" },
-  { id: "PIZZA", label: "Pizza" },
-  { id: "BURGERS", label: "Burgers" },
-  { id: "PASTA", label: "Pasta" },
+  { id: "PASTA", label: "Noodles & Rice" },
+  { id: "BURGERS", label: "Curries" },
   { id: "SEAFOOD", label: "Seafood" },
   { id: "SALADS", label: "Salads" },
-  { id: "DESSERTS", label: "Desserts" },
   { id: "APPETIZERS", label: "Appetizers" },
+  { id: "PIZZA", label: "Snacks" },
+  { id: "DESSERTS", label: "Desserts" },
   { id: "DRINKS", label: "Drinks" },
 ];
 
@@ -148,8 +148,8 @@ export default function MenuPage() {
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg sticky top-0 z-10">
         <div className="container px-4 py-6">
-          <h1 className="text-3xl font-bold">Our Menu</h1>
-          <p className="text-orange-100 mt-1">Choose your favorite dishes</p>
+          <h1 className="text-3xl font-bold">🇲🇲 Myanmar Menu</h1>
+          <p className="text-orange-100 mt-1">Authentic Myanmar Cuisine</p>
         </div>
       </div>
 
@@ -216,10 +216,10 @@ export default function MenuPage() {
                     <div className="flex items-center justify-between mt-4">
                       <div>
                         <p className="text-2xl font-black text-orange-600">
-                          ${item.price.toFixed(2)}
+                          ฿{item.price.toFixed(0)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          âš¡ {item.prepTime}
+                          ⚡ {item.prepTime}
                         </p>
                       </div>
 
@@ -274,7 +274,7 @@ export default function MenuPage() {
                   <span className="font-semibold">{itemCount} items</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xl font-bold">${total.toFixed(2)}</span>
+                  <span className="text-xl font-bold">฿{total.toFixed(0)}</span>
                   <span className="text-sm">View Cart →</span>
                 </div>
               </button>
