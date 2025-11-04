@@ -89,19 +89,17 @@ async function main() {
         "Traditional Myanmar fish noodle soup with lemongrass, banana stem, and crispy fritters",
       price: 85,
       category: "PASTA" as const,
-      image:
-        "https://images.unsplash.com/photo-1569562211093-4ed0d0758f12?w=800&q=80",
+      image: "https://mitziemee.com/wp-content/uploads/2023/01/mohinga-g.jpg",
       rating: 4.9,
       prepTime: "15-20 min",
     },
     {
-      name: "Shan Noodles (Khao Swe)",
+      name: "Shan Noodles (Shan Khao Swe)",
       description:
         "Shan-style rice noodles with chicken or pork, peanuts, and spicy sauce",
       price: 95,
       category: "PASTA" as const,
-      image:
-        "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=800&q=80",
+      image: "https://images.deliveryhero.io/image/fd-mm/LH/s2zw-listing.jpg",
       rating: 4.8,
       prepTime: "15-20 min",
     },
@@ -112,7 +110,7 @@ async function main() {
       price: 105,
       category: "PASTA" as const,
       image:
-        "https://images.unsplash.com/photo-1612874742237-6526221588e3?w=800&q=80",
+        "https://lionmartjp.com/cdn/shop/files/FullSizeRender_a8e4e55d-8087-4371-8839-d74d3437b0cd.jpg?v=1733552912&width=1445",
       rating: 4.9,
       prepTime: "20-25 min",
     },
@@ -133,8 +131,7 @@ async function main() {
         "Rice noodles with savory sauce, pickled vegetables, and chicken",
       price: 85,
       category: "PASTA" as const,
-      image:
-        "https://images.unsplash.com/photo-1569562211093-4ed0d0758f12?w=800&q=80",
+      image: "https://images.deliveryhero.io/image/fd-mm/LH/s180-listing.jpg",
       rating: 4.6,
       prepTime: "15-20 min",
     },
@@ -147,7 +144,7 @@ async function main() {
       price: 120,
       category: "BURGERS" as const,
       image:
-        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=800&q=80",
+        "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.foodpanda.com.mm%2Frestaurant%2Fhkq0%2Fmng-saa-k-ii-hkq0&psig=AOvVaw2EtmZUwEh9oUxnVMtzQCSE&ust=1762361708718000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCJjjyJH72JADFQAAAAAdAAAAABAE",
       rating: 4.8,
       prepTime: "25-30 min",
     },
@@ -158,7 +155,7 @@ async function main() {
       price: 125,
       category: "BURGERS" as const,
       image:
-        "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5c-i4Hyz_Q8vFUuvIttQFuthWh4QIgNNMKg&s",
       rating: 4.7,
       prepTime: "25-30 min",
     },
@@ -169,7 +166,7 @@ async function main() {
       price: 135,
       category: "SEAFOOD" as const,
       image:
-        "https://images.unsplash.com/photo-1485921325833-c519f76c4927?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSR-m7nW4yTSZK9-JcEoZCN8ynaBM5WBEwLYQ&s",
       rating: 4.8,
       prepTime: "25-30 min",
     },
@@ -189,7 +186,7 @@ async function main() {
       price: 145,
       category: "BURGERS" as const,
       image:
-        "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&q=80",
+        "https://i0.wp.com/www.wutyeefoodhouse.com/wp-content/uploads/2014/11/Mutton_Curry4.jpg",
       rating: 4.7,
       prepTime: "30-35 min",
     },
@@ -202,7 +199,7 @@ async function main() {
       price: 75,
       category: "SALADS" as const,
       image:
-        "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=800&q=80",
+        "https://www.saveur.com/uploads/2022/03/23/DJH_SaveurDutchess_BurmeseTeaLeaf_0122_2-scaled.jpg?auto=webp",
       rating: 4.9,
       prepTime: "10-15 min",
     },
@@ -213,7 +210,7 @@ async function main() {
       price: 65,
       category: "SALADS" as const,
       image:
-        "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800&q=80",
+        "https://shop.shwebiz.com/cdn/shop/products/291971815_460143849274717_8438372039424217000_n.jpg?v=1660562893&width=1445",
       rating: 4.6,
       prepTime: "10-15 min",
     },
@@ -224,7 +221,7 @@ async function main() {
       price: 55,
       category: "SALADS" as const,
       image:
-        "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFotwhg2e4kZOIaI4cKVUSkxwvKZJKsg94GQ&s",
       rating: 4.5,
       prepTime: "10-15 min",
     },
@@ -248,7 +245,7 @@ async function main() {
       price: 55,
       category: "APPETIZERS" as const,
       image:
-        "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=800&q=80",
+        "https://smartcdn.gprod.postmedia.digital/nationalpost/wp-content/uploads/2020/01/chickpeafritters.jpg",
       rating: 4.6,
       prepTime: "15-20 min",
     },
@@ -259,7 +256,7 @@ async function main() {
       price: 50,
       category: "APPETIZERS" as const,
       image:
-        "https://images.unsplash.com/photo-1593759608136-45c2f4548cce?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQETLCp959EST1LS9XbQTXmgm4li9I74QZufg&s",
       rating: 4.5,
       prepTime: "15-20 min",
     },
@@ -269,7 +266,7 @@ async function main() {
       price: 40,
       category: "APPETIZERS" as const,
       image:
-        "https://images.unsplash.com/photo-1576107232684-1279f390859f?w=800&q=80",
+        "https://www.google.com/url?sa=i&url=https%3A%2F%2Fmy.wikipedia.org%2Fwiki%2F%25E1%2580%2598%25E1%2580%25B0%25E1%2580%25B8%25E1%2580%259E%25E1%2580%25AE%25E1%2580%25B8%25E1%2580%2580%25E1%2580%25BC%25E1%2580%25B1%25E1%2580%25AC%25E1%2580%25BA&psig=AOvVaw3eezluCL6H34wuH637HfpL&ust=1762361643332000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCMjlpfH62JADFQAAAAAdAAAAABAE",
       rating: 4.4,
       prepTime: "15-20 min",
     },
@@ -282,7 +279,7 @@ async function main() {
       price: 60,
       category: "PIZZA" as const,
       image:
-        "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&q=80",
+        "https://images.squarespace-cdn.com/content/v1/604fca2357feb3489dacff9b/1615924700184-F30O4VTOLWKHIF9NUSIQ/image-asset.jpeg",
       rating: 4.8,
       prepTime: "15-20 min",
     },
@@ -292,7 +289,7 @@ async function main() {
       price: 35,
       category: "PIZZA" as const,
       image:
-        "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNq0gSVh_d5yObo6Jt6Z50RP_vEvbxJQd2TA&s",
       rating: 4.7,
       prepTime: "10-15 min",
     },
@@ -305,7 +302,7 @@ async function main() {
       price: 45,
       category: "DESSERTS" as const,
       image:
-        "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=800&q=80",
+        "https://cdn.tasteatlas.com/images/dishes/c79e5fd832b24dc791b19d02af952060.jpg?m=facebook",
       rating: 4.9,
       prepTime: "5-10 min",
     },
@@ -316,7 +313,7 @@ async function main() {
       price: 40,
       category: "DESSERTS" as const,
       image:
-        "https://images.unsplash.com/photo-1582103928939-daf5e1f55b2c?w=800&q=80",
+        "https://myanmarmix.com/sites/myanmarmix.com/files/news-images/thingyan_snack-min.jpg",
       rating: 4.8,
       prepTime: "5-10 min",
     },
@@ -327,7 +324,7 @@ async function main() {
       price: 50,
       category: "DESSERTS" as const,
       image:
-        "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80",
+        "https://i0.wp.com/cookiecompanion.com/blog/wp-content/uploads/2015/06/sanwin-makin-3177-klein-recht.jpg",
       rating: 4.7,
       prepTime: "5-10 min",
     },
@@ -339,7 +336,7 @@ async function main() {
       price: 35,
       category: "DRINKS" as const,
       image:
-        "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPjHPJsJSTP5XYlhNEwWEsWn55Aggf-OCeEw&s",
       rating: 4.8,
       prepTime: "5 min",
     },
@@ -349,7 +346,7 @@ async function main() {
       price: 30,
       category: "DRINKS" as const,
       image:
-        "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjKuN90z8c_rQCkJyfnJk_rG6Fy5kwAiOwEg&s",
       rating: 4.7,
       prepTime: "5 min",
     },
@@ -359,7 +356,7 @@ async function main() {
       price: 40,
       category: "DRINKS" as const,
       image:
-        "https://images.unsplash.com/photo-1582630368216-e78d92a5bddf?w=800&q=80",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Coconut_Drink%2C_Pangandaran.JPG/1200px-Coconut_Drink%2C_Pangandaran.JPG",
       rating: 4.6,
       prepTime: "3 min",
     },
@@ -369,7 +366,7 @@ async function main() {
       price: 30,
       category: "DRINKS" as const,
       image:
-        "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=800&q=80",
+        "https://www.seingayhar.com/image/cache/catalog/Product/Fruit%20Juice/111%20Ve%20Ve%20Fresh%20Lime%20Juice%20With%20Pulp%20260ml-1000x1000.jpg",
       rating: 4.7,
       prepTime: "5 min",
     },
@@ -379,7 +376,7 @@ async function main() {
       price: 40,
       category: "DRINKS" as const,
       image:
-        "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT-Mb-yXLquRdSQiYaaCzw7Srt9RzHzl0uSCg&s",
       rating: 4.8,
       prepTime: "5 min",
     },

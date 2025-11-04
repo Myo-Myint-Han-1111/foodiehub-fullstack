@@ -1,271 +1,412 @@
-"use client";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import {
-  ShoppingCart,
-  Minus,
-  Plus,
-  Trash2,
-  ArrowLeft,
-  AlertCircle,
-} from "lucide-react";
-import { useCart } from "@/context/CartContext";
-import { useToast } from "@/components/ui/use-toast";
+const prisma = new PrismaClient();
 
-export default function CartPage() {
-  const [loading, setLoading] = useState(false);
-  const [hasValidSession, setHasValidSession] = useState(false);
-  const [orderType, setOrderType] = useState<string | null>(null);
-  const [tableNumber, setTableNumber] = useState<string | null>(null);
-  const router = useRouter();
-  const { toast } = useToast();
+async function main() {
+  console.log("🌱 Starting seed...");
 
-  const { items, removeItem, updateQuantity, subtotal, total, clearCart } =
-    useCart();
+  console.log("Deleting existing data...");
+  await prisma.orderItem.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.address.deleteMany({});
+  await prisma.menuItem.deleteMany({});
+  await prisma.user.deleteMany({});
+  console.log("✅ Existing data cleared");
 
-  // Check for valid QR session
-  useEffect(() => {
-    const type = sessionStorage.getItem("orderType");
-    const table = sessionStorage.getItem("tableNumber");
+  // Create Admin user
+  await prisma.user.create({
+    data: {
+      email: "admin@myanmarfoodhub.com",
+      password: await bcrypt.hash("admin2024", 10),
+      name: "Zaw Min Oo",
+      phone: "+66-81-234-5678",
+      role: "ADMIN",
+    },
+  });
 
-    if (!type) {
-      setHasValidSession(false);
-    } else {
-      setHasValidSession(true);
-      setOrderType(type);
-      setTableNumber(table);
-    }
-  }, []);
+  // Create Customer users
+  await prisma.user.create({
+    data: {
+      email: "thandar@gmail.com",
+      password: await bcrypt.hash("customer123", 10),
+      name: "Thandar Aung",
+      phone: "+66-82-345-6789",
+      role: "CUSTOMER",
+    },
+  });
 
-  async function handleConfirmOrder() {
-    if (items.length === 0) {
-      toast({
-        title: "Error",
-        description: "Your cart is empty",
-        variant: "destructive",
-      });
-      return;
-    }
+  await prisma.user.create({
+    data: {
+      email: "kyaw.soe@gmail.com",
+      password: await bcrypt.hash("customer123", 10),
+      name: "Kyaw Soe Win",
+      phone: "+66-83-456-7890",
+      role: "CUSTOMER",
+    },
+  });
 
-    setLoading(true);
+  // Create Kitchen staff
+  await prisma.user.create({
+    data: {
+      email: "kitchen@myanmarfoodhub.com",
+      password: await bcrypt.hash("kitchen123", 10),
+      name: "Myo Min Thu",
+      phone: "+66-84-567-8901",
+      role: "KITCHEN",
+    },
+  });
 
-    try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderType: orderType,
-          tableNumber: tableNumber || null,
-          items: items.map((item) => ({
-            menuItemId: item.id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          total: total,
-        }),
-      });
+  await prisma.user.create({
+    data: {
+      email: "chef.win@myanmarfoodhub.com",
+      password: await bcrypt.hash("kitchen123", 10),
+      name: "Win Htut Aung",
+      phone: "+66-85-678-9012",
+      role: "KITCHEN",
+    },
+  });
 
-      const data = await response.json();
+  // Create Counter staff
+  await prisma.user.create({
+    data: {
+      email: "counter@myanmarfoodhub.com",
+      password: await bcrypt.hash("counter123", 10),
+      name: "Su Myat Mon",
+      phone: "+66-86-789-0123",
+      role: "COUNTER",
+    },
+  });
 
-      if (data.success) {
-        clearCart();
-        toast({
-          title: "Success!",
-          description: "Your order has been sent to the kitchen",
-        });
-        router.push("/orders");
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to place order",
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to place order",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  console.log("✅ Users created");
+
+  // Myanmar Menu Items with Baht currency and better images
+  const menuItems = [
+    // Main Dishes (PASTA category used for rice/noodle dishes)
+    {
+      name: "Mohinga",
+      description:
+        "Traditional Myanmar fish noodle soup with lemongrass, banana stem, and crispy fritters",
+      price: 85,
+      category: "PASTA" as const,
+      image:
+        "https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=800&q=80", // Better noodle soup
+      rating: 4.9,
+      prepTime: "15-20 min",
+    },
+    {
+      name: "Shan Noodles (Khao Swe)",
+      description:
+        "Shan-style rice noodles with chicken or pork, peanuts, and spicy sauce",
+      price: 95,
+      category: "PASTA" as const,
+      image:
+        "https://images.unsplash.com/photo-1555126634-323283e090fa?w=800&q=80", // Asian noodles with toppings
+      rating: 4.8,
+      prepTime: "15-20 min",
+    },
+    {
+      name: "Coconut Chicken Noodles (Ohn No Khao Swe)",
+      description:
+        "Creamy coconut curry noodles with tender chicken and egg noodles",
+      price: 105,
+      category: "PASTA" as const,
+      image:
+        "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&q=80", // Curry noodles
+      rating: 4.9,
+      prepTime: "20-25 min",
+    },
+    {
+      name: "Myanmar Fried Rice",
+      description:
+        "Fragrant fried rice with vegetables, egg, and choice of chicken or prawns",
+      price: 90,
+      category: "PASTA" as const,
+      image:
+        "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=800&q=80", // Fried rice
+      rating: 4.7,
+      prepTime: "15-20 min",
+    },
+    {
+      name: "Mandalay Meeshay",
+      description:
+        "Rice noodles with savory sauce, pickled vegetables, and chicken",
+      price: 85,
+      category: "PASTA" as const,
+      image:
+        "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&q=80", // Rice noodles
+      rating: 4.6,
+      prepTime: "15-20 min",
+    },
+
+    // Curries (BURGERS category repurposed)
+    {
+      name: "Chicken Curry (Kyet Thar Hin)",
+      description:
+        "Traditional Myanmar chicken curry with onions, tomatoes, and aromatic spices",
+      price: 120,
+      category: "BURGERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=800&q=80", // Chicken curry
+      rating: 4.8,
+      prepTime: "25-30 min",
+    },
+    {
+      name: "Pork Curry (Wet Thar Hin)",
+      description:
+        "Spicy pork curry cooked with tamarind and traditional Myanmar spices",
+      price: 125,
+      category: "BURGERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=800&q=80", // Pork curry
+      rating: 4.7,
+      prepTime: "25-30 min",
+    },
+    {
+      name: "Fish Curry (Nga Hin)",
+      description:
+        "Fresh fish cooked in tangy tamarind curry with tomatoes and herbs",
+      price: 135,
+      category: "SEAFOOD" as const,
+      image:
+        "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&q=80", // Fish curry
+      rating: 4.8,
+      prepTime: "25-30 min",
+    },
+    {
+      name: "Prawn Curry (Pazun Hin)",
+      description: "Succulent prawns in rich curry sauce with coconut milk",
+      price: 155,
+      category: "SEAFOOD" as const,
+      image:
+        "https://images.unsplash.com/photo-1633504581786-316c8002b1b9?w=800&q=80", // Prawn curry
+      rating: 4.9,
+      prepTime: "20-25 min",
+    },
+    {
+      name: "Mutton Curry (Sate Thar Hin)",
+      description: "Tender mutton slow-cooked with Myanmar spices and herbs",
+      price: 145,
+      category: "BURGERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80", // Meat curry
+      rating: 4.7,
+      prepTime: "30-35 min",
+    },
+
+    // Salads (SALADS category)
+    {
+      name: "Tea Leaf Salad (Lahpet Thoke)",
+      description:
+        "Famous Myanmar fermented tea leaf salad with peanuts, sesame, fried garlic, and lime",
+      price: 75,
+      category: "SALADS" as const,
+      image:
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80", // Fresh salad
+      rating: 4.9,
+      prepTime: "10-15 min",
+    },
+    {
+      name: "Ginger Salad (Gyin Thoke)",
+      description:
+        "Refreshing salad with pickled ginger, peanuts, sesame seeds, and fried beans",
+      price: 65,
+      category: "SALADS" as const,
+      image:
+        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80", // Asian salad
+      rating: 4.6,
+      prepTime: "10-15 min",
+    },
+    {
+      name: "Tomato Salad (Kha Yan Chin Thee Thoke)",
+      description:
+        "Fresh tomato salad with onions, dried shrimp, and peanut oil dressing",
+      price: 55,
+      category: "SALADS" as const,
+      image:
+        "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800&q=80", // Tomato salad
+      rating: 4.5,
+      prepTime: "10-15 min",
+    },
+
+    // Appetizers (APPETIZERS category)
+    {
+      name: "Samosa Thoke",
+      description:
+        "Myanmar-style samosa salad with chickpeas, cabbage, and tamarind sauce",
+      price: 45,
+      category: "APPETIZERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&q=80", // Samosas
+      rating: 4.7,
+      prepTime: "10-15 min",
+    },
+    {
+      name: "Shan Tofu Fritters",
+      description:
+        "Crispy chickpea tofu fritters served with sweet and sour sauce",
+      price: 55,
+      category: "APPETIZERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=800&q=80", // Tofu dish
+      rating: 4.6,
+      prepTime: "15-20 min",
+    },
+    {
+      name: "Spring Rolls (Kawpyan Kyaw)",
+      description:
+        "Crispy vegetable spring rolls served with sweet chili sauce",
+      price: 50,
+      category: "APPETIZERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1593759608136-45c2f4548cce?w=800&q=80", // Spring rolls
+      rating: 4.5,
+      prepTime: "15-20 min",
+    },
+    {
+      name: "Buthi Kyaw",
+      description: "Deep-fried gourd fritters with chickpea flour coating",
+      price: 40,
+      category: "APPETIZERS" as const,
+      image:
+        "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=800&q=80", // Fried vegetable
+      rating: 4.4,
+      prepTime: "15-20 min",
+    },
+
+    // Snacks (PIZZA category repurposed)
+    {
+      name: "Mont Lin Mayar",
+      description:
+        "Myanmar savory pancake with quail eggs, spring onions, and crispy texture",
+      price: 60,
+      category: "PIZZA" as const,
+      image:
+        "https://images.unsplash.com/photo-1583324113626-70df0f4deaab?w=800&q=80", // Savory pancake
+      rating: 4.8,
+      prepTime: "15-20 min",
+    },
+    {
+      name: "Palata (Flaky Bread)",
+      description: "Flaky layered flatbread served with curry dipping sauce",
+      price: 35,
+      category: "PIZZA" as const,
+      image:
+        "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=800&q=80", // Flatbread
+      rating: 4.7,
+      prepTime: "10-15 min",
+    },
+
+    // Desserts (DESSERTS category)
+    {
+      name: "Shwe Yin Aye",
+      description:
+        "Traditional Myanmar dessert with coconut milk, jelly, sago, and crushed ice",
+      price: 45,
+      category: "DESSERTS" as const,
+      image:
+        "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=800&q=80", // Ice dessert
+      rating: 4.9,
+      prepTime: "5-10 min",
+    },
+    {
+      name: "Mont Lone Yay Paw",
+      description:
+        "Sticky rice balls with palm sugar filling served in coconut milk",
+      price: 40,
+      category: "DESSERTS" as const,
+      image:
+        "https://images.unsplash.com/photo-1563279318-641da5ea8e39?w=800&q=80", // Sweet dessert balls
+      rating: 4.8,
+      prepTime: "5-10 min",
+    },
+    {
+      name: "Sanwin Makin",
+      description:
+        "Rich semolina cake with coconut milk, raisins, and poppy seeds",
+      price: 50,
+      category: "DESSERTS" as const,
+      image:
+        "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80", // Cake
+      rating: 4.7,
+      prepTime: "5-10 min",
+    },
+
+    // Drinks (DRINKS category)
+    {
+      name: "Myanmar Milk Tea (Laphet Yay)",
+      description: "Strong black tea with condensed milk, served hot or cold",
+      price: 35,
+      category: "DRINKS" as const,
+      image:
+        "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&q=80", // Milk tea
+      rating: 4.8,
+      prepTime: "5 min",
+    },
+    {
+      name: "Sugarcane Juice (Kyan Yay)",
+      description: "Freshly pressed sugarcane juice with lime",
+      price: 30,
+      category: "DRINKS" as const,
+      image:
+        "https://images.unsplash.com/photo-1546548970-71785318a17b?w=800&q=80", // Fresh juice
+      rating: 4.7,
+      prepTime: "5 min",
+    },
+    {
+      name: "Coconut Water",
+      description: "Fresh young coconut water served chilled",
+      price: 40,
+      category: "DRINKS" as const,
+      image:
+        "https://images.unsplash.com/photo-1582630368216-e78d92a5bddf?w=800&q=80", // Coconut water
+      rating: 4.6,
+      prepTime: "3 min",
+    },
+    {
+      name: "Lime Juice (Thanat Yay)",
+      description: "Freshly squeezed lime juice with sugar",
+      price: 30,
+      category: "DRINKS" as const,
+      image:
+        "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=800&q=80", // Lime juice
+      rating: 4.7,
+      prepTime: "5 min",
+    },
+    {
+      name: "Myanmar Coffee",
+      description: "Strong filtered coffee with condensed milk",
+      price: 40,
+      category: "DRINKS" as const,
+      image:
+        "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80", // Coffee
+      rating: 4.8,
+      prepTime: "5 min",
+    },
+  ];
+
+  for (const item of menuItems) {
+    await prisma.menuItem.create({ data: { ...item, available: true } });
   }
 
-  // Show blocked message if no valid session
-  if (!hasValidSession) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full border-2 border-orange-200">
-          <CardContent className="pt-12 pb-12 text-center">
-            <AlertCircle className="h-16 w-16 text-orange-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">
-              QR Code Required
-            </h2>
-            <p className="text-gray-600 mb-8">
-              Please scan a QR code from the restaurant to place orders.
-            </p>
-            <Button
-              onClick={() => router.push("/")}
-              className="w-full bg-orange-600 hover:bg-orange-700"
-            >
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="container py-16">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="pt-16 pb-16 text-center">
-            <ShoppingCart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-            <p className="text-muted-foreground mb-6">
-              Add some items to get started!
-            </p>
-            <Link href="/menu">
-              <Button>Browse Menu</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header */}
-      <div className="bg-white border-b shadow-sm sticky top-0 z-10">
-        <div className="container px-4 py-4 flex items-center gap-4">
-          <Link href="/menu">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">Your Cart</h1>
-          </div>
-          {orderType === "dine-in" && tableNumber && (
-            <Badge variant="secondary" className="text-lg px-3 py-1">
-              🪑 Table {tableNumber}
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <div className="container px-4 py-6 max-w-2xl">
-        {/* Cart Items */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold mb-4">Order Items</h2>
-            <div className="space-y-4">
-              {items.map((item) => (
-                <div key={item.id}>
-                  <div className="flex gap-4">
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-lg">{item.name}</h3>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => removeItem(item.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-3">
-                        <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
-                            }
-                            className="h-8 w-8"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="font-bold w-8 text-center">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
-                            }
-                            className="h-8 w-8"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <p className="text-lg font-bold text-orange-600">
-                          ฿{(item.price * item.quantity).toFixed(0)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator className="mt-4" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Order Summary */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-lg">
-                <span>Subtotal</span>
-                <span className="font-semibold">฿{subtotal.toFixed(0)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-xl font-bold">
-                <span>Total</span>
-                <span className="text-orange-600">฿{total.toFixed(0)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Confirm Button */}
-        <Button
-          onClick={handleConfirmOrder}
-          disabled={loading}
-          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-6 text-lg font-bold"
-        >
-          {loading ? "Placing order..." : "Confirm Order"}
-        </Button>
-      </div>
-    </div>
-  );
+  console.log("✅ Menu items created");
+  console.log("\n🎉 Database seeded successfully!");
+  console.log("👑 Admin: admin@myanmarfoodhub.com / admin2024");
+  console.log("📧 Customers:");
+  console.log("   - thandar@gmail.com / customer123");
+  console.log("   - kyaw.soe@gmail.com / customer123");
+  console.log("👨‍🍳 Kitchen Staff:");
+  console.log("   - kitchen@myanmarfoodhub.com / kitchen123");
+  console.log("   - chef.win@myanmarfoodhub.com / kitchen123");
+  console.log("💰 Counter: counter@myanmarfoodhub.com / counter123");
+  console.log("\n💵 All prices in Thai Baht (THB)");
 }
+
+main()
+  .catch((e) => {
+    console.error("❌ Seed error:", e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
