@@ -97,7 +97,7 @@ function KitchenPageContent() {
 
   if (loading) {
     return (
-      <div className="container py-10">
+      <div className="container py-10 px-4">
         <div className="text-center">Loading orders...</div>
       </div>
     );
@@ -105,70 +105,79 @@ function KitchenPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header */}
+      {/* Header - Improved responsive */}
       <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg sticky top-0 z-10">
-        <div className="container px-4 py-6">
+        <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Kitchen Display</h1>
-              <p className="text-orange-100 mt-1">
-                {pendingOrders.length} pending orders
+              <h1 className="text-2xl sm:text-3xl font-bold">
+                Kitchen Display
+              </h1>
+              <p className="text-orange-100 mt-1 text-sm sm:text-base">
+                {pendingOrders.length} pending{" "}
+                {pendingOrders.length === 1 ? "order" : "orders"}
               </p>
             </div>
             <Button
               onClick={fetchOrders}
               variant="secondary"
               size="icon"
-              className="h-12 w-12"
+              className="h-10 w-10 sm:h-12 sm:w-12"
             >
-              <RefreshCw className="h-6 w-6" />
+              <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="container px-4 py-6">
+      <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
         {/* Pending Orders */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Clock className="h-6 w-6 text-orange-600" />
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
             Pending Orders ({pendingOrders.length})
           </h2>
 
           {pendingOrders.length === 0 ? (
             <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-gray-500 text-lg">No pending orders</p>
+              <CardContent className="p-8 sm:p-12 text-center">
+                <p className="text-gray-500 text-base sm:text-lg">
+                  No pending orders
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {pendingOrders.map((order) => (
                 <Card
                   key={order.id}
                   className="border-4 border-orange-500 shadow-lg"
                 >
-                  <CardHeader className="bg-orange-50 pb-4">
+                  <CardHeader className="bg-orange-50 pb-3 sm:pb-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-3xl font-black">
-                        Table {order.tableNumber}
+                      <CardTitle className="text-2xl sm:text-3xl font-black">
+                        {order.orderType === "DINEIN" ? (
+                          <>Table {order.tableNumber}</>
+                        ) : (
+                          <>#{order.orderNumber}</>
+                        )}
                       </CardTitle>
-                      <Badge className="bg-orange-600 text-white text-lg px-4 py-2">
+                      <Badge className="bg-orange-600 text-white text-sm sm:text-base lg:text-lg px-3 sm:px-4 py-1 sm:py-2">
                         PENDING
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mt-2">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
                   </CardHeader>
-                  <CardContent className="pt-4">
+                  <CardContent className="pt-3 sm:pt-4">
                     <div className="space-y-2 mb-4">
                       {order.items.map((item) => (
                         <div
                           key={item.id}
                           className="flex justify-between items-center"
                         >
-                          <span className="font-medium">
+                          <span className="font-medium text-sm sm:text-base">
                             {item.quantity}x {item.name}
                           </span>
                         </div>
@@ -176,9 +185,9 @@ function KitchenPageContent() {
                     </div>
                     <Button
                       onClick={() => markAsDelivered(order.id)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg font-bold"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white py-5 sm:py-6 text-base sm:text-lg font-bold"
                     >
-                      <CheckCircle className="mr-2 h-5 w-5" />
+                      <CheckCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                       Mark as Delivered
                     </Button>
                   </CardContent>
@@ -190,41 +199,47 @@ function KitchenPageContent() {
 
         {/* Delivered Orders */}
         <div>
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
             Delivered Orders ({deliveredOrders.length})
           </h2>
 
           {deliveredOrders.length === 0 ? (
             <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-gray-500 text-lg">No delivered orders yet</p>
+              <CardContent className="p-8 sm:p-12 text-center">
+                <p className="text-gray-500 text-base sm:text-lg">
+                  No delivered orders yet
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {deliveredOrders.map((order) => (
                 <Card
                   key={order.id}
                   className="border-2 border-green-200 bg-green-50/50"
                 >
-                  <CardHeader className="pb-4">
+                  <CardHeader className="pb-3 sm:pb-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-2xl font-bold">
-                        Table {order.tableNumber}
+                      <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold">
+                        {order.orderType === "DINEIN" ? (
+                          <>Table {order.tableNumber}</>
+                        ) : (
+                          <>#{order.orderNumber}</>
+                        )}
                       </CardTitle>
-                      <Badge className="bg-green-600 text-white">
+                      <Badge className="bg-green-600 text-white text-xs sm:text-sm">
                         DELIVERED
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs text-gray-600">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-1">
                       {order.items.map((item) => (
-                        <div key={item.id} className="text-sm">
+                        <div key={item.id} className="text-xs sm:text-sm">
                           {item.quantity}x {item.name}
                         </div>
                       ))}

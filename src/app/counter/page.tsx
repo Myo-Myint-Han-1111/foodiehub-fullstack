@@ -113,7 +113,7 @@ function CounterPageContent() {
 
   if (loading) {
     return (
-      <div className="container py-10">
+      <div className="container py-10 px-4">
         <div className="text-center">Loading...</div>
       </div>
     );
@@ -121,36 +121,44 @@ function CounterPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header */}
+      {/* Header - Improved responsive */}
       <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg sticky top-0 z-10">
-        <div className="container px-4 py-6">
+        <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold">Counter / Payment</h1>
-              <p className="text-green-100 mt-1">Manage customer payments</p>
+              <h1 className="text-2xl sm:text-3xl font-bold">
+                Counter / Payment
+              </h1>
+              <p className="text-green-100 mt-1 text-sm sm:text-base">
+                Manage customer payments
+              </p>
             </div>
             <Button
               onClick={fetchOrders}
               variant="secondary"
               size="icon"
-              className="h-12 w-12"
+              className="h-10 w-10 sm:h-12 sm:w-12"
             >
-              <RefreshCw className="h-6 w-6" />
+              <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Stats - Responsive grid */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-4">
-                <p className="text-green-100 text-sm">Unpaid Orders</p>
-                <p className="text-3xl font-black">${totalUnpaid.toFixed(2)}</p>
+              <CardContent className="p-3 sm:p-4">
+                <p className="text-green-100 text-xs sm:text-sm">
+                  Unpaid Orders
+                </p>
+                <p className="text-2xl sm:text-3xl font-black">
+                  ${totalUnpaid.toFixed(2)}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-4">
-                <p className="text-green-100 text-sm">Paid Today</p>
-                <p className="text-3xl font-black">
+              <CardContent className="p-3 sm:p-4">
+                <p className="text-green-100 text-xs sm:text-sm">Paid Today</p>
+                <p className="text-2xl sm:text-3xl font-black">
                   ${totalPaidToday.toFixed(2)}
                 </p>
               </CardContent>
@@ -159,34 +167,34 @@ function CounterPageContent() {
         </div>
       </div>
 
-      <div className="container px-4 py-6">
-        {/* Search */}
+      <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
+        {/* Search - Improved responsive */}
         <Card className="mb-6">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
               <Input
                 type="text"
                 placeholder="Search by table number or order number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 text-lg"
+                className="pl-9 sm:pl-10 text-sm sm:text-base"
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Unpaid Orders */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <DollarSign className="h-6 w-6 text-orange-600" />
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+            <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
             Awaiting Payment ({filteredDeliveredOrders.length})
           </h2>
 
           {filteredDeliveredOrders.length === 0 ? (
             <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-gray-500 text-lg">
+              <CardContent className="p-8 sm:p-12 text-center">
+                <p className="text-gray-500 text-base sm:text-lg">
                   {searchQuery
                     ? "No matching orders"
                     : "No orders awaiting payment"}
@@ -194,26 +202,26 @@ function CounterPageContent() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredDeliveredOrders.map((order) => (
                 <Card
                   key={order.id}
                   className="border-4 border-orange-500 shadow-lg"
                 >
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-3xl font-black">
+                      <div className="text-2xl sm:text-3xl font-black">
                         {order.orderType === "DINEIN" ? (
                           <>🪑 Table {order.tableNumber}</>
                         ) : (
                           <>📦 #{order.orderNumber}</>
                         )}
                       </div>
-                      <Badge className="bg-orange-600 text-white text-lg px-4 py-2">
+                      <Badge className="bg-orange-600 text-white text-sm sm:text-base lg:text-lg px-3 sm:px-4 py-1 sm:py-2">
                         UNPAID
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-4">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
 
@@ -224,12 +232,14 @@ function CounterPageContent() {
                           className="flex justify-between items-center"
                         >
                           <div>
-                            <p className="font-semibold">{item.name}</p>
-                            <p className="text-sm text-gray-600">
+                            <p className="font-semibold text-sm sm:text-base">
+                              {item.name}
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-600">
                               ${item.price.toFixed(2)} × {item.quantity}
                             </p>
                           </div>
-                          <p className="font-bold text-orange-600">
+                          <p className="font-bold text-orange-600 text-sm sm:text-base">
                             ${(item.price * item.quantity).toFixed(2)}
                           </p>
                         </div>
@@ -238,8 +248,10 @@ function CounterPageContent() {
 
                     <div className="border-t-4 border-orange-600 pt-4 mb-6">
                       <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold">TOTAL:</span>
-                        <span className="text-3xl font-black text-green-600">
+                        <span className="text-lg sm:text-xl font-bold">
+                          TOTAL:
+                        </span>
+                        <span className="text-2xl sm:text-3xl font-black text-green-600">
                           ${order.total.toFixed(2)}
                         </span>
                       </div>
@@ -247,9 +259,9 @@ function CounterPageContent() {
 
                     <Button
                       onClick={() => markAsPaid(order.id)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg font-bold"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white py-5 sm:py-6 text-base sm:text-lg font-bold"
                     >
-                      <CheckCircle className="mr-2 h-5 w-5" />
+                      <CheckCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                       Mark as Paid
                     </Button>
                   </CardContent>
@@ -261,33 +273,37 @@ function CounterPageContent() {
 
         {/* Paid Orders */}
         <div>
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
             Paid Orders Today ({paidOrders.length})
           </h2>
 
           {paidOrders.length === 0 ? (
             <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-gray-500 text-lg">No paid orders yet</p>
+              <CardContent className="p-8 sm:p-12 text-center">
+                <p className="text-gray-500 text-base sm:text-lg">
+                  No paid orders yet
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
               {paidOrders.map((order) => (
                 <Card key={order.id} className="bg-green-50 border-green-200">
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 sm:p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="font-bold">
+                      <p className="font-bold text-sm sm:text-base">
                         {order.orderType === "DINEIN" ? (
                           <>🪑 Table {order.tableNumber}</>
                         ) : (
                           <>📦 #{order.orderNumber}</>
                         )}
                       </p>
-                      <Badge className="bg-green-600 text-white">PAID</Badge>
+                      <Badge className="bg-green-600 text-white text-xs">
+                        PAID
+                      </Badge>
                     </div>
-                    <p className="text-xl font-bold text-green-600">
+                    <p className="text-lg sm:text-xl font-bold text-green-600">
                       ${order.total.toFixed(2)}
                     </p>
                     <p className="text-xs text-gray-600 mt-1">
