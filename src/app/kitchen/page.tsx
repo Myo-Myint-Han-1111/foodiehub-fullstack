@@ -29,34 +29,59 @@ interface Order {
 function KitchenPageContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true); // ✅ Sound toggle
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const { toast } = useToast();
 
-  // ✅ Track previous order count to detect new orders
   const previousOrderCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const soundInitializedRef = useRef(false); // ✅ Track initialization
 
-  // ✅ Initialize audio
+  // ✅ Initialize audio and auto-unlock on first user interaction
   useEffect(() => {
-    // Create audio element
     audioRef.current = new Audio("/notification.wav");
     audioRef.current.volume = 0.8;
 
+    // ✅ Auto-initialize sound on ANY user interaction
+    const initializeSound = () => {
+      if (!soundInitializedRef.current && audioRef.current) {
+        audioRef.current
+          .play()
+          .then(() => {
+            audioRef.current!.pause();
+            audioRef.current!.currentTime = 0;
+            soundInitializedRef.current = true;
+            console.log("🔔 Sound system initialized and ready!");
+          })
+          .catch(() => {
+            console.log("⏳ Waiting for user interaction to enable sound...");
+          });
+      }
+    };
+
+    // ✅ Listen for ANY user interaction
+    const events = ["click", "touchstart", "keydown", "mousemove"];
+    events.forEach((event) => {
+      document.addEventListener(event, initializeSound, { once: true });
+    });
+
     return () => {
-      // Cleanup
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      // Cleanup event listeners
+      events.forEach((event) => {
+        document.removeEventListener(event, initializeSound);
+      });
     };
   }, []);
 
   // ✅ Play notification sound
   const playNotificationSound = () => {
-    if (soundEnabled && audioRef.current) {
-      audioRef.current.currentTime = 0; // Reset to start
+    if (soundEnabled && audioRef.current && soundInitializedRef.current) {
+      audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
-        console.log("Sound play blocked:", error);
+        console.log("Sound play failed:", error);
       });
     }
   };
@@ -134,7 +159,7 @@ function KitchenPageContent() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000); // Poll every 10 seconds
+    const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -166,7 +191,7 @@ function KitchenPageContent() {
               <p className="text-blue-100 mt-1">Manage incoming orders</p>
             </div>
             <div className="flex items-center gap-3">
-              {/* ✅ Sound Toggle Button */}
+              {/* ✅ Sound Toggle */}
               <Button
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 variant={soundEnabled ? "secondary" : "outline"}

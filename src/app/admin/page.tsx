@@ -33,6 +33,13 @@ interface User {
   createdAt: string;
 }
 
+// ✅ Define staff roles only (customers use QR codes, not login)
+const STAFF_ROLES = [
+  { value: "KITCHEN", label: "Kitchen Staff" },
+  { value: "COUNTER", label: "Counter Staff" },
+  { value: "ADMIN", label: "Administrator" },
+] as const;
+
 function AdminPageContent() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,13 +47,13 @@ function AdminPageContent() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
-  // Form state
+  // Form state - ✅ Default to KITCHEN instead of CUSTOMER
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
     phone: "",
-    role: "CUSTOMER",
+    role: "KITCHEN",
   });
 
   const fetchUsers = useCallback(async () => {
@@ -78,7 +85,7 @@ function AdminPageContent() {
       password: "",
       name: "",
       phone: "",
-      role: "CUSTOMER",
+      role: "KITCHEN", // ✅ Default to KITCHEN
     });
     setDialogOpen(true);
   }
@@ -188,19 +195,22 @@ function AdminPageContent() {
     );
   }
 
+  // ✅ Filter out CUSTOMER role from stats (they shouldn't be in user management)
+  const staffUsers = users.filter((u) => u.role !== "CUSTOMER");
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header - Improved responsive */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
         <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
                 <Users className="h-6 w-6 sm:h-8 sm:w-8" />
-                User Management
+                Staff Management
               </h1>
               <p className="text-purple-100 mt-1 text-sm sm:text-base">
-                Manage system users and roles
+                Manage staff users and roles
               </p>
             </div>
             <Button
@@ -208,49 +218,37 @@ function AdminPageContent() {
               className="bg-white text-purple-600 hover:bg-purple-50 w-full sm:w-auto"
             >
               <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              Add User
+              Add Staff
             </Button>
           </div>
         </div>
       </div>
 
       <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-        {/* Stats - Improved responsive grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        {/* Stats - ✅ Only show staff users */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Total Users
+                Total Staff
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold">
-                {users.length}
+                {staffUsers.length}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Customers
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                {users.filter((u) => u.role === "CUSTOMER").length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Staff
+                Kitchen & Counter
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold text-orange-600">
                 {
-                  users.filter(
+                  staffUsers.filter(
                     (u) => u.role === "KITCHEN" || u.role === "COUNTER"
                   ).length
                 }
@@ -260,21 +258,23 @@ function AdminPageContent() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Admins
+                Administrators
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                {users.filter((u) => u.role === "ADMIN").length}
+                {staffUsers.filter((u) => u.role === "ADMIN").length}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Users Table - Improved responsive */}
+        {/* Users Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">All Users</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">
+              All Staff Users
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -302,7 +302,7 @@ function AdminPageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
+                  {staffUsers.map((user) => (
                     <tr key={user.id} className="border-b hover:bg-gray-50">
                       <td className="p-2 sm:p-3">
                         <div className="font-medium text-sm sm:text-base">
@@ -359,12 +359,12 @@ function AdminPageContent() {
         </Card>
       </div>
 
-      {/* Create/Edit Dialog */}
+      {/* Create/Edit Dialog - ✅ CUSTOMER role removed */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
-              {editingUser ? "Edit User" : "Create New User"}
+              {editingUser ? "Edit Staff User" : "Create New Staff User"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
@@ -428,12 +428,17 @@ function AdminPageContent() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CUSTOMER">Customer</SelectItem>
-                    <SelectItem value="KITCHEN">Kitchen</SelectItem>
-                    <SelectItem value="COUNTER">Counter</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
+                    {/* ✅ Only staff roles - customers use QR codes */}
+                    {STAFF_ROLES.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Note: Customers do not need accounts - they use QR codes
+                </p>
               </div>
             </div>
             <DialogFooter>

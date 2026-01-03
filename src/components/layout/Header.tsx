@@ -17,20 +17,16 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasQRSession, setHasQRSession] = useState(false);
 
-  // Check for QR session
   useEffect(() => {
     const orderType = sessionStorage.getItem("orderType");
     setHasQRSession(!!orderType);
   }, [pathname]);
 
-  // Don't show header on login page
   if (pathname === "/login") {
     return null;
   }
 
-  // Define navigation based on role
   const getNavLinks = () => {
-    // If QR session exists, customer should see NO navigation
     if (hasQRSession) {
       return [];
     }
@@ -55,7 +51,8 @@ export default function Header() {
         ];
       case "ADMIN":
         return [
-          { href: "/admin", label: "User Management" },
+          { href: "/admin", label: "Staff" },
+          { href: "/admin/menu", label: "Menu" }, // ✅ ADDED
           { href: "/admin/qr-codes", label: "QR Codes" },
           { href: "/admin/orders", label: "Orders" },
           { href: "/admin/analytics", label: "Analytics" },
@@ -85,18 +82,13 @@ export default function Header() {
     }
   };
 
-  // Function to determine if cart should show
   const shouldShowCart = () => {
-    // Don't show cart on orders page
     if (pathname === "/orders") {
       return false;
     }
-
-    // Show cart for QR sessions or customer role
     return hasQRSession || user?.role === "CUSTOMER";
   };
 
-  // Determine if mobile menu should show
   const shouldShowMobileMenu = () => {
     if (hasQRSession) return false;
     if (user) return true;
@@ -106,21 +98,21 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 sm:h-16 items-center justify-between px-4 max-w-7xl mx-auto">
-        {/* Logo with Image */}
+        {/* Logo with Image - ✅ ROUNDED */}
         <Link href={getLogoLink()} className="flex items-center space-x-2">
-          <div className="relative w-8 h-8 sm:w-10 sm:h-10">
+          <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-blue-pond-500">
             <Image
               src="/bluepond-logo.jpg"
               alt="Blue Pond Cafe"
               fill
-              className="object-contain"
+              className="object-cover"
               priority
             />
           </div>
           <span className="font-bold text-base sm:text-xl">BluePond</span>
         </Link>
 
-        {/* Desktop Navigation - ✅ FIXED: Show on lg+ screens only */}
+        {/* Desktop Navigation */}
         <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
           {navLinks.map((link) => (
             <Link
@@ -137,7 +129,7 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Desktop Actions - ✅ FIXED: Show on lg+ screens only */}
+        {/* Desktop Actions */}
         <div className="hidden lg:flex items-center space-x-3 lg:space-x-4">
           {shouldShowCart() && (
             <Link href="/cart">
@@ -177,7 +169,7 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile/Tablet Actions - ✅ FIXED: Show on < lg screens (includes tablet) */}
+        {/* Mobile/Tablet Actions */}
         <div className="flex lg:hidden items-center gap-2">
           {shouldShowCart() && (
             <Link href="/cart">
@@ -192,7 +184,6 @@ export default function Header() {
             </Link>
           )}
 
-          {/* ✅ FIXED: Show hamburger menu on all non-desktop screens */}
           {shouldShowMobileMenu() && (
             <Button
               variant="ghost"
@@ -210,11 +201,10 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile/Tablet Menu - ✅ FIXED: Show on < lg screens */}
+      {/* Mobile/Tablet Menu */}
       {mobileMenuOpen && user && !hasQRSession && (
         <div className="lg:hidden border-t bg-background">
           <nav className="container px-4 py-4 space-y-3 max-w-7xl mx-auto">
-            {/* Navigation Links */}
             {navLinks.length > 0 && (
               <>
                 {navLinks.map((link) => (
@@ -234,7 +224,6 @@ export default function Header() {
               </>
             )}
 
-            {/* User Info & Logout */}
             <div className={navLinks.length > 0 ? "pt-3 border-t" : ""}>
               <div className="mb-3">
                 <p className="text-sm font-medium">{user.name}</p>

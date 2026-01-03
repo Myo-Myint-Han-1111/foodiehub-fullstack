@@ -376,13 +376,13 @@ function QRCodeGeneratorContent() {
               <div>
                 <p className="text-gray-600">Dine-in URL format:</p>
                 <p className="bg-white p-2 rounded border break-all">
-                  {baseUrl}/order?type=dine-in&table=[NUMBER]
+                  https://foodiehub-fullstack.vercel.app/order?type=dine-in&table=[NUMBER]
                 </p>
               </div>
               <div>
                 <p className="text-gray-600">Takeaway URL:</p>
                 <p className="bg-white p-2 rounded border break-all">
-                  {baseUrl}/order?type=takeaway
+                  https://foodiehub-fullstack.vercel.app/order?type=takeaway
                 </p>
               </div>
             </div>

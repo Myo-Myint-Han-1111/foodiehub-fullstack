@@ -39,32 +39,58 @@ function CounterPageContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true); // ✅ Sound toggle
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const { toast } = useToast();
 
-  // ✅ Track previous delivered order count
   const previousDeliveredCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const soundInitializedRef = useRef(false); // ✅ Track initialization
 
-  // ✅ Initialize audio
+  // ✅ Initialize audio and auto-unlock on first user interaction
   useEffect(() => {
     audioRef.current = new Audio("/notification.wav");
     audioRef.current.volume = 0.8;
+
+    // ✅ Auto-initialize sound on ANY user interaction
+    const initializeSound = () => {
+      if (!soundInitializedRef.current && audioRef.current) {
+        audioRef.current
+          .play()
+          .then(() => {
+            audioRef.current!.pause();
+            audioRef.current!.currentTime = 0;
+            soundInitializedRef.current = true;
+            console.log("🔔 Sound system initialized and ready!");
+          })
+          .catch(() => {
+            console.log("⏳ Waiting for user interaction to enable sound...");
+          });
+      }
+    };
+
+    // ✅ Listen for ANY user interaction
+    const events = ["click", "touchstart", "keydown", "mousemove"];
+    events.forEach((event) => {
+      document.addEventListener(event, initializeSound, { once: true });
+    });
 
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      events.forEach((event) => {
+        document.removeEventListener(event, initializeSound);
+      });
     };
   }, []);
 
   // ✅ Play notification sound
   const playNotificationSound = () => {
-    if (soundEnabled && audioRef.current) {
+    if (soundEnabled && audioRef.current && soundInitializedRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
-        console.log("Sound play blocked:", error);
+        console.log("Sound play failed:", error);
       });
     }
   };
@@ -87,7 +113,6 @@ function CounterPageContent() {
           previousDeliveredCountRef.current > 0 &&
           deliveredUnpaid > previousDeliveredCountRef.current
         ) {
-          // New delivered order detected!
           playNotificationSound();
 
           toast({
@@ -96,7 +121,6 @@ function CounterPageContent() {
           });
         }
 
-        // Update previous count
         previousDeliveredCountRef.current = deliveredUnpaid;
         setOrders(newOrders);
       }
@@ -143,7 +167,7 @@ function CounterPageContent() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000); // Poll every 10 seconds
+    const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -174,7 +198,6 @@ function CounterPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header with Sound Toggle */}
       <div className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white shadow-lg">
         <div className="container px-4 py-6">
           <div className="flex items-center justify-between">
@@ -185,7 +208,6 @@ function CounterPageContent() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {/* ✅ Sound Toggle Button */}
               <Button
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 variant={soundEnabled ? "secondary" : "outline"}
@@ -214,7 +236,6 @@ function CounterPageContent() {
       </div>
 
       <div className="container px-4 py-8">
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
@@ -251,7 +272,6 @@ function CounterPageContent() {
           </Card>
         </div>
 
-        {/* Search Bar */}
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -264,7 +284,6 @@ function CounterPageContent() {
           </div>
         </div>
 
-        {/* Delivered Orders (Awaiting Payment) */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4">
             Ready for Payment ({filteredDeliveredOrders.length})
@@ -349,7 +368,6 @@ function CounterPageContent() {
           )}
         </div>
 
-        {/* Recent Paid Orders */}
         {paidOrders.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold mb-4">
