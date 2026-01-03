@@ -5,7 +5,7 @@ import { QrCode, UtensilsCrossed } from "lucide-react";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto text-center">
@@ -18,8 +18,8 @@ export default function LandingPage() {
           </p>
 
           {/* QR Code Instructions */}
-          <Card className="max-w-2xl mx-auto shadow-xl border-2 border-orange-200">
-            <CardHeader className="bg-gradient-to-r from-orange-600 to-red-600 text-white">
+          <Card className="max-w-2xl mx-auto shadow-xl border-2 border-blue-pond-200">
+            <CardHeader className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white">
               <CardTitle className="text-2xl flex items-center justify-center gap-3">
                 <QrCode className="h-8 w-8" />
                 How to Order
@@ -29,12 +29,12 @@ export default function LandingPage() {
               <div className="space-y-6">
                 {/* Dine-In Instructions */}
                 <div className="flex items-start gap-4 text-left">
-                  <div className="bg-orange-100 text-orange-700 rounded-full w-12 h-12 flex items-center justify-center font-bold flex-shrink-0 text-xl">
+                  <div className="bg-blue-pond-100 text-blue-pond-700 rounded-full w-12 h-12 flex items-center justify-center font-bold flex-shrink-0 text-xl">
                     1
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                      <UtensilsCrossed className="h-5 w-5 text-orange-600" />
+                      <UtensilsCrossed className="h-5 w-5 text-blue-pond-600" />
                       For Dine-In
                     </h3>
                     <p className="text-gray-600">
@@ -98,8 +98,8 @@ export default function LandingPage() {
           </div>
 
           {/* Notice */}
-          <div className="mt-12 p-6 bg-amber-50 border-2 border-amber-200 rounded-xl">
-            <p className="text-amber-800 font-medium">
+          <div className="mt-12 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+            <p className="text-blue-800 font-medium">
               ⚠️ <strong>Notice:</strong> Online ordering is only available
               in-store via QR code. Please visit our restaurant to place an
               order.

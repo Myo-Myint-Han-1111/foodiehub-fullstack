@@ -5,7 +5,14 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, ShoppingCart, Clock, CheckCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  RefreshCw,
+  ShoppingCart,
+  Clock,
+  CheckCircle,
+  Calendar,
+} from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 
@@ -36,6 +43,15 @@ export default function OrdersPage() {
     null
   );
   const [isCustomerSession, setIsCustomerSession] = useState(false);
+
+  // ✅ NEW: Date filter state for staff
+  const [filterMode, setFilterMode] = useState<"quick" | "custom">("quick");
+  const [quickFilter, setQuickFilter] = useState<"today" | "month" | "all">(
+    "today"
+  );
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
 
@@ -46,11 +62,44 @@ export default function OrdersPage() {
     setSessionOrderType(orderType);
     setSessionTableNumber(tableNumber);
 
-    // Customer session = has QR session data and NO logged in user
-    // OR user is explicitly a CUSTOMER role
     const hasQRSession = orderType !== null;
     setIsCustomerSession(hasQRSession || user?.role === "CUSTOMER");
   }, [user]);
+
+  // ✅ NEW: Calculate date range based on filter
+  const getDateRange = () => {
+    const now = new Date();
+
+    if (filterMode === "quick") {
+      switch (quickFilter) {
+        case "today":
+          // Start of today to now
+          const todayStart = new Date(now);
+          todayStart.setHours(0, 0, 0, 0);
+          return { start: todayStart, end: now };
+
+        case "month":
+          // Start of this month to now
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          return { start: monthStart, end: now };
+
+        case "all":
+          return null; // No date filter
+      }
+    } else {
+      // Custom date range
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        return { start, end };
+      }
+      return null;
+    }
+  };
 
   async function fetchOrders() {
     try {
@@ -61,12 +110,22 @@ export default function OrdersPage() {
       const isStaffUser =
         user && ["KITCHEN", "COUNTER", "ADMIN"].includes(user.role);
 
-      const params = new URLSearchParams({
-        timeFilter: isStaffUser ? "all" : "2h", // Staff sees all, customers see 2h
-      });
+      const params = new URLSearchParams();
 
-      // For customer QR sessions, filter by session data
-      if (!isStaffUser) {
+      if (isStaffUser) {
+        // ✅ Staff: Use date filters
+        const dateRange = getDateRange();
+
+        if (dateRange) {
+          params.append("startDate", dateRange.start.toISOString());
+          params.append("endDate", dateRange.end.toISOString());
+        }
+        // If no date range, fetch all orders (no time filter)
+      } else {
+        // Customer: Use 2h filter
+        params.append("timeFilter", "2h");
+
+        // Filter by session data
         if (orderType === "dine-in" && tableNumber) {
           params.append("tableNumber", tableNumber);
         } else if (orderType === "takeaway") {
@@ -96,7 +155,7 @@ export default function OrdersPage() {
     const interval = setInterval(fetchOrders, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [quickFilter, startDate, endDate, filterMode]);
 
   function getStatusBadge(status: string) {
     const styles = {
@@ -134,24 +193,27 @@ export default function OrdersPage() {
     return (
       <div className="container py-10">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading orders...</p>
         </div>
       </div>
     );
   }
 
+  const isStaffUser =
+    user && ["KITCHEN", "COUNTER", "ADMIN"].includes(user.role);
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white shadow-lg">
         <div className="container px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">
                 {isCustomerSession ? "My Orders" : "All Orders"}
               </h1>
-              <p className="text-orange-100 mt-1">
+              <p className="text-blue-100 mt-1">
                 {isCustomerSession
                   ? sessionOrderType === "dine-in"
                     ? `Table ${sessionTableNumber} orders`
@@ -172,6 +234,117 @@ export default function OrdersPage() {
       </div>
 
       <div className="container px-4 py-8">
+        {/* ✅ NEW: Date Filter Section (Only for Staff) */}
+        {isStaffUser && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Date Filter
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Filter Mode Toggle */}
+              <div className="flex gap-2 mb-4">
+                <Button
+                  onClick={() => setFilterMode("quick")}
+                  variant={filterMode === "quick" ? "default" : "outline"}
+                  className="flex-1"
+                >
+                  Quick Filter
+                </Button>
+                <Button
+                  onClick={() => setFilterMode("custom")}
+                  variant={filterMode === "custom" ? "default" : "outline"}
+                  className="flex-1"
+                >
+                  Custom Range
+                </Button>
+              </div>
+
+              {/* Quick Filter Buttons */}
+              {filterMode === "quick" && (
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    onClick={() => setQuickFilter("today")}
+                    variant={quickFilter === "today" ? "default" : "outline"}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    onClick={() => setQuickFilter("month")}
+                    variant={quickFilter === "month" ? "default" : "outline"}
+                  >
+                    This Month
+                  </Button>
+                  <Button
+                    onClick={() => setQuickFilter("all")}
+                    variant={quickFilter === "all" ? "default" : "outline"}
+                  >
+                    All Time
+                  </Button>
+                </div>
+              )}
+
+              {/* Custom Date Range Picker */}
+              {filterMode === "custom" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Start Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      max={endDate || undefined}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      End Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      min={startDate || undefined}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Active Filter Display */}
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-900">
+                  {filterMode === "quick" ? (
+                    <>
+                      Showing: {quickFilter === "today" && "Today's orders"}
+                      {quickFilter === "month" && "This month's orders"}
+                      {quickFilter === "all" && "All orders"}
+                    </>
+                  ) : (
+                    <>
+                      {startDate && endDate ? (
+                        <>
+                          Showing: {new Date(startDate).toLocaleDateString()} -{" "}
+                          {new Date(endDate).toLocaleDateString()}
+                        </>
+                      ) : (
+                        "Please select start and end dates"
+                      )}
+                    </>
+                  )}
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  {orders.length} order{orders.length !== 1 ? "s" : ""} found
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Orders List */}
         {orders.length === 0 ? (
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-16 pb-16 text-center">
@@ -250,7 +423,7 @@ export default function OrdersPage() {
                             {item.quantity}x {item.name}
                           </span>
                           <span className="font-medium">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            ฿{(item.price * item.quantity).toFixed(0)}
                           </span>
                         </div>
                       ))}
@@ -258,7 +431,7 @@ export default function OrdersPage() {
                     <div className="mt-4 pt-4 border-t flex justify-between items-center">
                       <span className="font-bold">Total:</span>
                       <span className="text-xl font-bold text-green-600">
-                        ${order.total.toFixed(2)}
+                        ฿{order.total.toFixed(0)}
                       </span>
                     </div>
                   </CardContent>
@@ -277,7 +450,7 @@ export default function OrdersPage() {
                     Browse our menu and add more items to your order
                   </p>
                   <Link href="/menu">
-                    <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+                    <Button className="bg-blue-pond-500 hover:bg-blue-pond-600 w-full sm:w-auto">
                       <ShoppingCart className="h-4 w-4 mr-2" />
                       Order Again
                     </Button>

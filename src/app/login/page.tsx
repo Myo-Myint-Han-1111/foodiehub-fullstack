@@ -33,7 +33,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="text-5xl mb-4">🍽️</div>
@@ -65,7 +65,7 @@ export default function LoginPage() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-orange-600 hover:bg-orange-700"
+              className="w-full bg-blue-pond-500 hover:bg-blue-pond-600"
               disabled={loading}
             >
               {loading ? "Logging in..." : "Login"}

@@ -70,13 +70,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
   };
 
+  // ✅ FIXED: No tax or delivery fee for dine-in restaurant
   const subtotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const tax = subtotal * 0.1; // 10% tax
-  const deliveryFee = items.length > 0 ? 2.99 : 0;
-  const total = subtotal + tax + deliveryFee;
+  const tax = 0; // No tax
+  const deliveryFee = 0; // No delivery fee (dine-in/takeaway)
+  const total = subtotal; // Total = Subtotal only
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const value: CartContextType = {
@@ -97,6 +98,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
 export function useCart() {
   const context = useContext(CartContext);
+
   if (context === undefined) {
     throw new Error("useCart must be used within a CartProvider");
   }

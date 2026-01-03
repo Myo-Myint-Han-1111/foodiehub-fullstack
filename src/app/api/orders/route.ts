@@ -114,43 +114,75 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+
+    // ✅ NEW: Custom date range parameters (for staff date filter)
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    // EXISTING: Quick time filters
     const timeFilter = searchParams.get("timeFilter"); // "2h", "24h", "30d", "all"
     const tableNumber = searchParams.get("tableNumber"); // For customer filtering
     const orderType = searchParams.get("orderType"); // "DINEIN" or "TAKEAWAY"
 
-    // Calculate time filters
-    const now = new Date();
-    let createdAfter: Date | undefined;
-
-    switch (timeFilter) {
-      case "2h":
-        createdAfter = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
-        break;
-      case "24h":
-        createdAfter = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-        break;
-      case "30d":
-        createdAfter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-        break;
-      case "all":
-      default:
-        createdAfter = undefined; // No filter
-        break;
-    }
+    console.log("📋 Fetching orders with filters:", {
+      startDate: startDateParam,
+      endDate: endDateParam,
+      timeFilter,
+      tableNumber,
+      orderType,
+    });
 
     // Build where clause
     const whereClause: {
-      createdAt?: { gte: Date };
+      createdAt?: { gte?: Date; lte?: Date };
       tableNumber?: string;
       orderType?: "DINEIN" | "TAKEAWAY";
     } = {};
 
-    if (createdAfter) {
+    // ✅ NEW: Handle custom date range (takes priority over timeFilter)
+    if (startDateParam && endDateParam) {
+      const startDate = new Date(startDateParam);
+      const endDate = new Date(endDateParam);
+
       whereClause.createdAt = {
-        gte: createdAfter,
+        gte: startDate,
+        lte: endDate,
       };
+
+      console.log("📅 Using custom date range:", {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      });
+    }
+    // EXISTING: Handle quick time filters (fallback)
+    else if (timeFilter) {
+      const now = new Date();
+      let createdAfter: Date | undefined;
+
+      switch (timeFilter) {
+        case "2h":
+          createdAfter = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+          break;
+        case "24h":
+          createdAfter = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+          break;
+        case "30d":
+          createdAfter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+          break;
+        case "all":
+        default:
+          createdAfter = undefined; // No filter
+          break;
+      }
+
+      if (createdAfter) {
+        whereClause.createdAt = {
+          gte: createdAfter,
+        };
+      }
     }
 
+    // EXISTING: Customer session filters
     if (tableNumber) {
       whereClause.tableNumber = tableNumber;
       whereClause.orderType = "DINEIN";
@@ -159,13 +191,6 @@ export async function GET(req: NextRequest) {
     if (orderType && !tableNumber) {
       whereClause.orderType = orderType as "DINEIN" | "TAKEAWAY";
     }
-
-    console.log("📋 Fetching orders with filters:", {
-      timeFilter,
-      tableNumber,
-      orderType,
-      createdAfter,
-    });
 
     const orders = await prisma.order.findMany({
       where: whereClause,

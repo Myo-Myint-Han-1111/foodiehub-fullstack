@@ -248,7 +248,7 @@ function QRCodeGeneratorContent() {
               <div className="flex gap-3">
                 <Button
                   onClick={downloadAllTableQRs}
-                  className="bg-orange-600 hover:bg-orange-700"
+                  className="bg-blue-pond-500 hover:bg-blue-pond-600"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download All ({numTables} QR Codes)

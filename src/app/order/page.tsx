@@ -5,16 +5,30 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext"; // ✅ CHANGE 1: Import useAuth
 
 function OrderPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { logout, user } = useAuth(); // ✅ CHANGE 2: Get logout and user from AuthContext
   const [validating, setValidating] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const orderType = searchParams.get("type");
     const tableNumber = searchParams.get("table");
+
+    // ✅ CHANGE 3: CRITICAL FIX - Auto-logout staff when customer scans QR
+    if (user && ["KITCHEN", "COUNTER", "ADMIN"].includes(user.role)) {
+      console.log(
+        "🔒 Staff user detected during QR scan - auto-logout for clean customer session"
+      );
+      logout();
+      // Give a moment for logout to complete before continuing
+      setTimeout(() => {
+        // Validation will continue after logout
+      }, 100);
+    }
 
     // Validate QR code parameters
     if (!orderType || (orderType !== "dine-in" && orderType !== "takeaway")) {
@@ -40,17 +54,17 @@ function OrderPageContent() {
     }
 
     setValidating(false);
-  }, [searchParams]);
+  }, [searchParams, user, logout]); // ✅ CHANGE 4: Add user and logout to dependencies
 
   const orderType = searchParams.get("type");
   const tableNumber = searchParams.get("table");
 
   if (validating) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-12 pb-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto mb-4"></div>
             <p className="text-gray-600">Validating QR code...</p>
           </CardContent>
         </Card>
@@ -60,7 +74,7 @@ function OrderPageContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full border-2 border-red-200">
           <CardContent className="pt-12 pb-12 text-center">
             <AlertCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
@@ -82,7 +96,7 @@ function OrderPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
       <Card className="max-w-md w-full shadow-xl border-2 border-green-200">
         <CardContent className="pt-12 pb-12 text-center">
           <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
@@ -90,11 +104,11 @@ function OrderPageContent() {
 
           {orderType === "dine-in" ? (
             <>
-              <div className="my-6 p-4 bg-orange-100 rounded-lg">
-                <p className="text-sm text-orange-700 font-medium mb-1">
+              <div className="my-6 p-4 bg-blue-pond-100 rounded-lg">
+                <p className="text-sm text-blue-pond-700 font-medium mb-1">
                   You are ordering for:
                 </p>
-                <p className="text-3xl font-black text-orange-900">
+                <p className="text-3xl font-black text-blue-pond-900">
                   🪑 Table {tableNumber}
                 </p>
               </div>
@@ -118,7 +132,7 @@ function OrderPageContent() {
 
           <Button
             onClick={() => router.push("/menu")}
-            className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-6 text-lg font-bold"
+            className="w-full bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 hover:from-blue-pond-600 hover:to-blue-pond-800 text-white py-6 text-lg font-bold"
           >
             Start Ordering →
           </Button>
@@ -132,10 +146,10 @@ export default function OrderPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
             <CardContent className="pt-12 pb-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading...</p>
             </CardContent>
           </Card>

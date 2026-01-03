@@ -105,10 +105,10 @@ export default function CartPage() {
   // Show blocked message if no valid session
   if (!hasValidSession) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-2 border-orange-200">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-2 border-blue-pond-200">
           <CardContent className="pt-12 pb-12 text-center">
-            <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-orange-600 mx-auto mb-4" />
+            <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-blue-pond-600 mx-auto mb-4" />
             <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900">
               QR Code Required
             </h2>
@@ -117,7 +117,7 @@ export default function CartPage() {
             </p>
             <Button
               onClick={() => router.push("/")}
-              className="w-full bg-orange-600 hover:bg-orange-700"
+              className="w-full bg-blue-pond-500hover:bg-blue-pond-600"
             >
               Back to Home
             </Button>
@@ -238,7 +238,7 @@ export default function CartPage() {
                             <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </div>
-                        <p className="text-base sm:text-lg font-bold text-orange-600">
+                        <p className="text-base sm:text-lg font-bold text-blue-pond-600">
                           ฿{(item.price * item.quantity).toFixed(0)}
                         </p>
                       </div>
@@ -264,7 +264,7 @@ export default function CartPage() {
               <Separator />
               <div className="flex justify-between text-lg sm:text-xl font-bold">
                 <span>Total</span>
-                <span className="text-orange-600">฿{total.toFixed(0)}</span>
+                <span className="text-blue-pond-600">฿{total.toFixed(0)}</span>
               </div>
             </div>
           </CardContent>

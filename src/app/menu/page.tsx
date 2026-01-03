@@ -108,10 +108,10 @@ export default function MenuPage() {
   // Show warning if no valid QR session
   if (!hasValidSession) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-2 border-orange-200">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-2 border-blue-pond-200">
           <CardContent className="pt-12 pb-12 text-center">
-            <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-orange-600 mx-auto mb-4" />
+            <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-blue-pond-600 mx-auto mb-4" />
             <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900">
               QR Code Required
             </h2>
@@ -135,7 +135,7 @@ export default function MenuPage() {
     return (
       <div className="container py-10 px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading menu...</p>
         </div>
       </div>
@@ -144,20 +144,20 @@ export default function MenuPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Hero Header - Improved design */}
-      <div className="bg-gradient-to-br from-orange-600 via-red-600 to-orange-700 text-white">
+      {/* Hero Header - Updated to blue */}
+      <div className="bg-gradient-to-br from-blue-pond-500 via-blue-pond-600 to-blue-pond-700 text-white">
         <div className="container px-4 py-8 sm:py-12 max-w-7xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">
             Myanmar Menu
           </h1>
-          <p className="text-orange-50 text-base sm:text-lg max-w-2xl mx-auto">
+          <p className="text-blue-50 text-base sm:text-lg max-w-2xl mx-auto">
             Authentic Myanmar Cuisine • Fresh & Delicious
           </p>
         </div>
       </div>
 
       <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-        {/* Category Filters - Sticky for easy access */}
+        {/* Category Filters - Updated to blue */}
         <div className="sticky top-14 sm:top-16 bg-gray-50 pt-2 pb-4 mb-4 sm:mb-6 z-10">
           <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide">
             {categories.map((cat) => (
@@ -166,7 +166,7 @@ export default function MenuPage() {
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                   selectedCategory === cat.id
-                    ? "bg-orange-600 text-white shadow-md"
+                    ? "bg-blue-pond-500 text-white shadow-md"
                     : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
                 }`}
               >
@@ -176,7 +176,7 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Menu Items Grid - Improved responsive breakpoints */}
+        {/* Menu Items Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
           {filteredItems.map((item) => {
             const quantity = getItemQuantity(item.id);
@@ -221,10 +221,10 @@ export default function MenuPage() {
                       </div>
                     </div>
 
-                    {/* Price and Actions - Responsive */}
+                    {/* Price and Actions - Updated to blue */}
                     <div className="flex items-center justify-between mt-3 sm:mt-4">
                       <div>
-                        <p className="text-xl sm:text-2xl font-black text-orange-600">
+                        <p className="text-xl sm:text-2xl font-black text-blue-pond-600">
                           ฿{item.price.toFixed(0)}
                         </p>
                         <p className="text-xs text-gray-500">
@@ -236,7 +236,7 @@ export default function MenuPage() {
                         <Button
                           onClick={() => handleAdd(item)}
                           disabled={!item.available}
-                          className="bg-orange-600 hover:bg-orange-700 h-9 w-9 sm:h-10 sm:w-10 p-0"
+                          className="bg-blue-pond-500 hover:bg-blue-pond-600 h-9 w-9 sm:h-10 sm:w-10 p-0"
                           size="icon"
                         >
                           <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -273,12 +273,12 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {/* Floating Cart Button - Improved responsive */}
+      {/* Floating Cart Button - Updated to blue */}
       {itemCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg">
           <div className="container px-4 py-3 max-w-7xl mx-auto">
             <Link href="/cart">
-              <button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg py-3 sm:py-4 px-4 sm:px-6 flex items-center justify-between">
+              <button className="w-full bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 hover:from-blue-pond-600 hover:to-blue-pond-800 text-white rounded-lg py-3 sm:py-4 px-4 sm:px-6 flex items-center justify-between">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="font-semibold text-sm sm:text-base">

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, RefreshCw } from "lucide-react";
+import { CheckCircle, Clock, RefreshCw, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import RoleGuard from "@/components/RoleGuard";
 
@@ -29,14 +29,63 @@ interface Order {
 function KitchenPageContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true); // ✅ Sound toggle
   const { toast } = useToast();
+
+  // ✅ Track previous order count to detect new orders
+  const previousOrderCountRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // ✅ Initialize audio
+  useEffect(() => {
+    // Create audio element
+    audioRef.current = new Audio("/notification.wav");
+    audioRef.current.volume = 0.8;
+
+    return () => {
+      // Cleanup
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // ✅ Play notification sound
+  const playNotificationSound = () => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0; // Reset to start
+      audioRef.current.play().catch((error) => {
+        console.log("Sound play blocked:", error);
+      });
+    }
+  };
 
   async function fetchOrders() {
     try {
       const response = await fetch("/api/kitchen/orders");
       const data = await response.json();
+
       if (data.success) {
-        setOrders(data.data);
+        const newOrders = data.data;
+
+        // ✅ Check if there are NEW orders (count increased)
+        if (
+          previousOrderCountRef.current > 0 &&
+          newOrders.length > previousOrderCountRef.current
+        ) {
+          // New order detected!
+          playNotificationSound();
+
+          toast({
+            title: "🔔 New Order!",
+            description: `Order #${newOrders[0].orderNumber} received`,
+          });
+        }
+
+        // Update previous count
+        previousOrderCountRef.current = newOrders.length;
+        setOrders(newOrders);
       }
     } catch {
       toast({
@@ -85,111 +134,166 @@ function KitchenPageContent() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 30000);
+    const interval = setInterval(fetchOrders, 10000); // Poll every 10 seconds
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pendingOrders = orders.filter((order) => order.status === "PENDING");
-  const deliveredOrders = orders.filter(
+  const pendingOrders = orders.filter((order) => order.status !== "DELIVERED");
+  const completedOrders = orders.filter(
     (order) => order.status === "DELIVERED"
   );
 
   if (loading) {
     return (
-      <div className="container py-10 px-4">
-        <div className="text-center">Loading orders...</div>
+      <div className="container py-10">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading orders...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header - Improved responsive */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg sticky top-0 z-10">
-        <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
+      {/* Header with Sound Toggle */}
+      <div className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white shadow-lg">
+        <div className="container px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">
-                Kitchen Display
-              </h1>
-              <p className="text-orange-100 mt-1 text-sm sm:text-base">
-                {pendingOrders.length} pending{" "}
-                {pendingOrders.length === 1 ? "order" : "orders"}
-              </p>
+              <h1 className="text-3xl font-bold">Kitchen Display</h1>
+              <p className="text-blue-100 mt-1">Manage incoming orders</p>
             </div>
-            <Button
-              onClick={fetchOrders}
-              variant="secondary"
-              size="icon"
-              className="h-10 w-10 sm:h-12 sm:w-12"
-            >
-              <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6" />
-            </Button>
+            <div className="flex items-center gap-3">
+              {/* ✅ Sound Toggle Button */}
+              <Button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                variant={soundEnabled ? "secondary" : "outline"}
+                size="icon"
+                className="h-12 w-12"
+                title={soundEnabled ? "Sound On" : "Sound Off"}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-6 w-6" />
+                ) : (
+                  <VolumeX className="h-6 w-6" />
+                )}
+              </Button>
+
+              <Button
+                onClick={fetchOrders}
+                variant="secondary"
+                size="icon"
+                className="h-12 w-12"
+              >
+                <RefreshCw className="h-6 w-6" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
+      <div className="container px-4 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <Clock className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
+                <p className="text-2xl font-bold">{pendingOrders.length}</p>
+                <p className="text-sm text-muted-foreground">Pending Orders</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <CheckCircle className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                <p className="text-2xl font-bold">{completedOrders.length}</p>
+                <p className="text-sm text-muted-foreground">Completed Today</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <RefreshCw className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                <p className="text-2xl font-bold">{orders.length}</p>
+                <p className="text-sm text-muted-foreground">Total Orders</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Pending Orders */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">
             Pending Orders ({pendingOrders.length})
           </h2>
 
           {pendingOrders.length === 0 ? (
             <Card>
-              <CardContent className="p-8 sm:p-12 text-center">
-                <p className="text-gray-500 text-base sm:text-lg">
-                  No pending orders
-                </p>
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-16 w-16 mx-auto text-green-600 mb-4" />
+                <p className="text-xl font-semibold">All caught up!</p>
+                <p className="text-muted-foreground">No pending orders</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pendingOrders.map((order) => (
-                <Card
-                  key={order.id}
-                  className="border-4 border-orange-500 shadow-lg"
-                >
-                  <CardHeader className="bg-orange-50 pb-3 sm:pb-4">
+                <Card key={order.id} className="border-2 border-yellow-200">
+                  <CardHeader className="bg-yellow-50">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-2xl sm:text-3xl font-black">
-                        {order.orderType === "DINEIN" ? (
-                          <>Table {order.tableNumber}</>
-                        ) : (
-                          <>#{order.orderNumber}</>
-                        )}
+                      <CardTitle className="text-lg">
+                        Order #{order.orderNumber}
                       </CardTitle>
-                      <Badge className="bg-orange-600 text-white text-sm sm:text-base lg:text-lg px-3 sm:px-4 py-1 sm:py-2">
-                        PENDING
+                      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">
+                        {order.status}
                       </Badge>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-2">
+                    <p className="text-sm text-muted-foreground">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
+                    <div className="flex gap-2 mt-2">
+                      <Badge variant="outline">
+                        {order.orderType === "DINEIN" ? "Dine-in" : "Takeaway"}
+                      </Badge>
+                      {order.tableNumber && (
+                        <Badge variant="outline">
+                          Table {order.tableNumber}
+                        </Badge>
+                      )}
+                    </div>
                   </CardHeader>
-                  <CardContent className="pt-3 sm:pt-4">
-                    <div className="space-y-2 mb-4">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
                       {order.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex justify-between items-center"
+                          className="flex justify-between items-center text-sm"
                         >
-                          <span className="font-medium text-sm sm:text-base">
+                          <span className="font-medium">
                             {item.quantity}x {item.name}
+                          </span>
+                          <span className="text-muted-foreground">
+                            ฿{(item.price * item.quantity).toFixed(0)}
                           </span>
                         </div>
                       ))}
                     </div>
-                    <Button
-                      onClick={() => markAsDelivered(order.id)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-5 sm:py-6 text-base sm:text-lg font-bold"
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                      Mark as Delivered
-                    </Button>
+                    <div className="mt-4 pt-4 border-t">
+                      <Button
+                        onClick={() => markAsDelivered(order.id)}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Mark as Delivered
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -197,49 +301,32 @@ function KitchenPageContent() {
           )}
         </div>
 
-        {/* Delivered Orders */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-            Delivered Orders ({deliveredOrders.length})
-          </h2>
-
-          {deliveredOrders.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 sm:p-12 text-center">
-                <p className="text-gray-500 text-base sm:text-lg">
-                  No delivered orders yet
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-              {deliveredOrders.map((order) => (
-                <Card
-                  key={order.id}
-                  className="border-2 border-green-200 bg-green-50/50"
-                >
-                  <CardHeader className="pb-3 sm:pb-4">
+        {/* Completed Orders */}
+        {completedOrders.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">
+              Completed Orders ({completedOrders.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {completedOrders.map((order) => (
+                <Card key={order.id} className="opacity-75">
+                  <CardHeader className="bg-green-50">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold">
-                        {order.orderType === "DINEIN" ? (
-                          <>Table {order.tableNumber}</>
-                        ) : (
-                          <>#{order.orderNumber}</>
-                        )}
+                      <CardTitle className="text-lg">
+                        Order #{order.orderNumber}
                       </CardTitle>
-                      <Badge className="bg-green-600 text-white text-xs sm:text-sm">
+                      <Badge className="bg-green-100 text-green-700 border-green-300">
                         DELIVERED
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-4">
                     <div className="space-y-1">
                       {order.items.map((item) => (
-                        <div key={item.id} className="text-xs sm:text-sm">
+                        <div key={item.id} className="text-sm">
                           {item.quantity}x {item.name}
                         </div>
                       ))}
@@ -248,8 +335,8 @@ function KitchenPageContent() {
                 </Card>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -257,7 +344,7 @@ function KitchenPageContent() {
 
 export default function KitchenPage() {
   return (
-    <RoleGuard allowedRoles={["KITCHEN"]}>
+    <RoleGuard allowedRoles={["KITCHEN", "ADMIN"]}>
       <KitchenPageContent />
     </RoleGuard>
   );

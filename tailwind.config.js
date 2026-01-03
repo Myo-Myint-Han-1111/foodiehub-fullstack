@@ -39,6 +39,19 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Blue Pond Cafe custom colors
+        "blue-pond": {
+          50: "#e6f7ff",
+          100: "#b3e5ff",
+          200: "#80d4ff",
+          300: "#4dc2ff",
+          400: "#1ab1ff",
+          500: "#00a8e8", // Main Blue Pond Cafe blue
+          600: "#0086ba",
+          700: "#00648c",
+          800: "#00425e",
+          900: "#002130",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

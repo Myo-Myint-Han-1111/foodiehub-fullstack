@@ -1,11 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { DollarSign, Search, CheckCircle, RefreshCw } from "lucide-react";
+import {
+  DollarSign,
+  Search,
+  CheckCircle,
+  RefreshCw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import RoleGuard from "@/components/RoleGuard";
 
@@ -32,14 +39,66 @@ function CounterPageContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true); // ✅ Sound toggle
   const { toast } = useToast();
+
+  // ✅ Track previous delivered order count
+  const previousDeliveredCountRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // ✅ Initialize audio
+  useEffect(() => {
+    audioRef.current = new Audio("/notification.wav");
+    audioRef.current.volume = 0.8;
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // ✅ Play notification sound
+  const playNotificationSound = () => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((error) => {
+        console.log("Sound play blocked:", error);
+      });
+    }
+  };
 
   async function fetchOrders() {
     try {
       const response = await fetch("/api/counter/orders");
       const data = await response.json();
+
       if (data.success) {
-        setOrders(data.data);
+        const newOrders = data.data;
+
+        // ✅ Count delivered but unpaid orders
+        const deliveredUnpaid = newOrders.filter(
+          (o: Order) => o.status === "DELIVERED" && !o.paid
+        ).length;
+
+        // ✅ Check if there are NEW delivered orders (count increased)
+        if (
+          previousDeliveredCountRef.current > 0 &&
+          deliveredUnpaid > previousDeliveredCountRef.current
+        ) {
+          // New delivered order detected!
+          playNotificationSound();
+
+          toast({
+            title: "🔔 Order Ready!",
+            description: "New order ready for payment",
+          });
+        }
+
+        // Update previous count
+        previousDeliveredCountRef.current = deliveredUnpaid;
+        setOrders(newOrders);
       }
     } catch {
       toast({
@@ -84,7 +143,7 @@ function CounterPageContent() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 30000);
+    const interval = setInterval(fetchOrders, 10000); // Poll every 10 seconds
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -102,166 +161,185 @@ function CounterPageContent() {
       )
     : deliveredOrders;
 
-  const totalUnpaid = deliveredOrders.reduce(
-    (sum, order) => sum + order.total,
-    0
-  );
-  const totalPaidToday = paidOrders.reduce(
-    (sum, order) => sum + order.total,
-    0
-  );
-
   if (loading) {
     return (
-      <div className="container py-10 px-4">
-        <div className="text-center">Loading...</div>
+      <div className="container py-10">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading orders...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header - Improved responsive */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg sticky top-0 z-10">
-        <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
+      {/* Header with Sound Toggle */}
+      <div className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white shadow-lg">
+        <div className="container px-4 py-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">
-                Counter / Payment
-              </h1>
-              <p className="text-green-100 mt-1 text-sm sm:text-base">
-                Manage customer payments
+              <h1 className="text-3xl font-bold">Counter / Payment</h1>
+              <p className="text-blue-100 mt-1">
+                Process payments for delivered orders
               </p>
             </div>
-            <Button
-              onClick={fetchOrders}
-              variant="secondary"
-              size="icon"
-              className="h-10 w-10 sm:h-12 sm:w-12"
-            >
-              <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6" />
-            </Button>
-          </div>
+            <div className="flex items-center gap-3">
+              {/* ✅ Sound Toggle Button */}
+              <Button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                variant={soundEnabled ? "secondary" : "outline"}
+                size="icon"
+                className="h-12 w-12"
+                title={soundEnabled ? "Sound On" : "Sound Off"}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-6 w-6" />
+                ) : (
+                  <VolumeX className="h-6 w-6" />
+                )}
+              </Button>
 
-          {/* Stats - Responsive grid */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-3 sm:p-4">
-                <p className="text-green-100 text-xs sm:text-sm">
-                  Unpaid Orders
-                </p>
-                <p className="text-2xl sm:text-3xl font-black">
-                  ${totalUnpaid.toFixed(2)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-3 sm:p-4">
-                <p className="text-green-100 text-xs sm:text-sm">Paid Today</p>
-                <p className="text-2xl sm:text-3xl font-black">
-                  ${totalPaidToday.toFixed(2)}
-                </p>
-              </CardContent>
-            </Card>
+              <Button
+                onClick={fetchOrders}
+                variant="secondary"
+                size="icon"
+                className="h-12 w-12"
+              >
+                <RefreshCw className="h-6 w-6" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-        {/* Search - Improved responsive */}
-        <Card className="mb-6">
-          <CardContent className="p-3 sm:p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
-              <Input
-                type="text"
-                placeholder="Search by table number or order number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 sm:pl-10 text-sm sm:text-base"
-              />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="container px-4 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <DollarSign className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
+                <p className="text-2xl font-bold">{deliveredOrders.length}</p>
+                <p className="text-sm text-muted-foreground">
+                  Awaiting Payment
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Unpaid Orders */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-            <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
-            Awaiting Payment ({filteredDeliveredOrders.length})
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <CheckCircle className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                <p className="text-2xl font-bold">{paidOrders.length}</p>
+                <p className="text-sm text-muted-foreground">Paid Today</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <DollarSign className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                <p className="text-2xl font-bold">
+                  ฿{paidOrders.reduce((sum, o) => sum + o.total, 0).toFixed(0)}
+                </p>
+                <p className="text-sm text-muted-foreground">Revenue Today</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by order number or table..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Delivered Orders (Awaiting Payment) */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">
+            Ready for Payment ({filteredDeliveredOrders.length})
           </h2>
 
           {filteredDeliveredOrders.length === 0 ? (
             <Card>
-              <CardContent className="p-8 sm:p-12 text-center">
-                <p className="text-gray-500 text-base sm:text-lg">
-                  {searchQuery
-                    ? "No matching orders"
-                    : "No orders awaiting payment"}
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-16 w-16 mx-auto text-green-600 mb-4" />
+                <p className="text-xl font-semibold">All caught up!</p>
+                <p className="text-muted-foreground">
+                  No orders awaiting payment
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredDeliveredOrders.map((order) => (
-                <Card
-                  key={order.id}
-                  className="border-4 border-orange-500 shadow-lg"
-                >
-                  <CardContent className="p-4 sm:p-6">
+                <Card key={order.id} className="border-2 border-green-200">
+                  <CardContent className="pt-6">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-2xl sm:text-3xl font-black">
-                        {order.orderType === "DINEIN" ? (
-                          <>🪑 Table {order.tableNumber}</>
-                        ) : (
-                          <>📦 #{order.orderNumber}</>
-                        )}
+                      <div>
+                        <p className="text-2xl font-bold">
+                          Order #{order.orderNumber}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.createdAt).toLocaleTimeString()}
+                        </p>
                       </div>
-                      <Badge className="bg-orange-600 text-white text-sm sm:text-base lg:text-lg px-3 sm:px-4 py-1 sm:py-2">
-                        UNPAID
+                      <Badge className="bg-green-100 text-green-700 border-green-300">
+                        READY
                       </Badge>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-4">
-                      {new Date(order.createdAt).toLocaleTimeString()}
-                    </p>
 
-                    <div className="space-y-2 mb-6">
+                    <div className="flex gap-2 mb-4">
+                      <Badge variant="outline">
+                        {order.orderType === "DINEIN" ? "Dine-in" : "Takeaway"}
+                      </Badge>
+                      {order.tableNumber && (
+                        <Badge variant="outline">
+                          Table {order.tableNumber}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 mb-4">
                       {order.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex justify-between items-center"
+                          className="flex justify-between text-sm"
                         >
-                          <div>
-                            <p className="font-semibold text-sm sm:text-base">
-                              {item.name}
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-600">
-                              ${item.price.toFixed(2)} × {item.quantity}
-                            </p>
-                          </div>
-                          <p className="font-bold text-orange-600 text-sm sm:text-base">
-                            ${(item.price * item.quantity).toFixed(2)}
-                          </p>
+                          <span>
+                            {item.quantity}x {item.name}
+                          </span>
+                          <span>
+                            ฿{(item.price * item.quantity).toFixed(0)}
+                          </span>
                         </div>
                       ))}
                     </div>
 
-                    <div className="border-t-4 border-orange-600 pt-4 mb-6">
+                    <div className="mb-4 pt-4 border-t">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg sm:text-xl font-bold">
-                          TOTAL:
-                        </span>
-                        <span className="text-2xl sm:text-3xl font-black text-green-600">
-                          ${order.total.toFixed(2)}
+                        <span className="font-bold text-lg">Total:</span>
+                        <span className="text-2xl font-black text-green-600">
+                          ฿{order.total.toFixed(0)}
                         </span>
                       </div>
                     </div>
 
                     <Button
                       onClick={() => markAsPaid(order.id)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-5 sm:py-6 text-base sm:text-lg font-bold"
+                      className="w-full bg-green-600 hover:bg-green-700"
                     >
-                      <CheckCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                      <CheckCircle className="h-4 w-4 mr-2" />
                       Mark as Paid
                     </Button>
                   </CardContent>
@@ -271,50 +349,37 @@ function CounterPageContent() {
           )}
         </div>
 
-        {/* Paid Orders */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-            Paid Orders Today ({paidOrders.length})
-          </h2>
-
-          {paidOrders.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 sm:p-12 text-center">
-                <p className="text-gray-500 text-base sm:text-lg">
-                  No paid orders yet
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-              {paidOrders.map((order) => (
-                <Card key={order.id} className="bg-green-50 border-green-200">
-                  <CardContent className="p-3 sm:p-4">
+        {/* Recent Paid Orders */}
+        {paidOrders.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">
+              Recent Payments ({paidOrders.slice(0, 6).length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paidOrders.slice(0, 6).map((order) => (
+                <Card key={order.id} className="opacity-75">
+                  <CardContent className="pt-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="font-bold text-sm sm:text-base">
-                        {order.orderType === "DINEIN" ? (
-                          <>🪑 Table {order.tableNumber}</>
-                        ) : (
-                          <>📦 #{order.orderNumber}</>
-                        )}
-                      </p>
-                      <Badge className="bg-green-600 text-white text-xs">
+                      <p className="font-bold">Order #{order.orderNumber}</p>
+                      <Badge className="bg-blue-100 text-blue-700 border-blue-300">
                         PAID
                       </Badge>
                     </div>
-                    <p className="text-lg sm:text-xl font-bold text-green-600">
-                      ${order.total.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mb-2">
                       {new Date(order.createdAt).toLocaleTimeString()}
                     </p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Total:</span>
+                      <span className="font-bold text-green-600">
+                        ฿{order.total.toFixed(0)}
+                      </span>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -322,7 +387,7 @@ function CounterPageContent() {
 
 export default function CounterPage() {
   return (
-    <RoleGuard allowedRoles={["COUNTER"]}>
+    <RoleGuard allowedRoles={["COUNTER", "ADMIN"]}>
       <CounterPageContent />
     </RoleGuard>
   );
