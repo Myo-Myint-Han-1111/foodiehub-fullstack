@@ -235,36 +235,6 @@ The application uses Prisma ORM with the following models:
 | **COUNTER**  | Counter, Analytics | Process payments and view sales       |
 | **ADMIN**    | Full System Access | Manage users, QR codes, and analytics |
 
-## 🔑 Demo Accounts
-
-After seeding the database, you can login with these demo accounts:
-
-### Admin
-
-- **Email**: admin@myanmarfoodhub.com
-- **Password**: admin2024
-
-### Customers
-
-- **Email**: thandar@gmail.com
-- **Password**: customer123
-
-- **Email**: kyaw.soe@gmail.com
-- **Password**: customer123
-
-### Kitchen Staff
-
-- **Email**: kitchen@myanmarfoodhub.com
-- **Password**: kitchen123
-
-- **Email**: chef.win@myanmarfoodhub.com
-- **Password**: kitchen123
-
-### Counter Staff
-
-- **Email**: counter@myanmarfoodhub.com
-- **Password**: counter123
-
 ## 🎯 Key Features by Role
 
 ### Customer (No Login Required)
