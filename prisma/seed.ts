@@ -7,7 +7,10 @@ async function main() {
   console.log("🌱 Starting seed...");
 
   console.log("Deleting existing data...");
+  await prisma.actionRequest.deleteMany({});
+  await prisma.orderLog.deleteMany({});
   await prisma.orderItem.deleteMany({});
+  await prisma.orderSet.deleteMany({});
   await prisma.order.deleteMany({});
   await prisma.address.deleteMany({});
   await prisma.menuItem.deleteMany({});
@@ -75,6 +78,27 @@ async function main() {
       name: "Su Myat Mon",
       phone: "+66-86-789-0123",
       role: "COUNTER",
+    },
+  });
+
+  // Create Server staff
+  await prisma.user.create({
+    data: {
+      email: "server@myanmarfoodhub.com",
+      password: await bcrypt.hash("server123", 10),
+      name: "Aye Myat Noe",
+      phone: "+66-87-890-1234",
+      role: "SERVER",
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      email: "server2@myanmarfoodhub.com",
+      password: await bcrypt.hash("server123", 10),
+      name: "Thida Win",
+      phone: "+66-88-901-2345",
+      role: "SERVER",
     },
   });
 
@@ -396,6 +420,9 @@ async function main() {
   console.log("   - kitchen@myanmarfoodhub.com / kitchen123");
   console.log("   - chef.win@myanmarfoodhub.com / kitchen123");
   console.log("💰 Counter: counter@myanmarfoodhub.com / counter123");
+  console.log("🍽️ Server Staff:");
+  console.log("   - server@myanmarfoodhub.com / server123");
+  console.log("   - server2@myanmarfoodhub.com / server123");
   console.log("\n💵 All prices in Thai Baht (THB)");
 }
 

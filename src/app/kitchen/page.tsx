@@ -1,47 +1,77 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  RefreshCw,
+  Volume2,
+  VolumeX,
+  ChefHat,
+  Flame,
+  UtensilsCrossed,
+  AlertCircle,
+} from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import RoleGuard from "@/components/RoleGuard";
+import { apiFetch } from "@/lib/api-client";
 
-interface OrderItem {
+// ---------- Types ----------
+
+interface SetItem {
   id: string;
   name: string;
   quantity: number;
   price: number;
+  itemStatus?: string;
 }
 
-interface Order {
+interface SetOrder {
   id: string;
   orderNumber: number;
   orderType: string;
   tableNumber: string | null;
-  items: OrderItem[];
   total: number;
   status: string;
   createdAt: string;
+  createdById: string | null;
 }
 
+interface KitchenSet {
+  id: string;
+  orderId: string;
+  setNumber: number;
+  status: string;
+  sentAt: string | null;
+  readyAt: string | null;
+  updatedAt: string;
+  createdAt: string;
+  items: SetItem[];
+  order: SetOrder;
+}
+
+// ---------- Component ----------
+
 function KitchenPageContent() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [sets, setSets] = useState<KitchenSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { toast } = useToast();
 
-  const previousOrderCountRef = useRef<number>(0);
+  const previousPendingIdsRef = useRef<Set<string>>(new Set());
+  const setTimestampsRef = useRef<Map<string, string>>(new Map());
+  const [modifiedSetIds, setModifiedSetIds] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const soundInitializedRef = useRef(false); // ✅ Track initialization
+  const soundInitializedRef = useRef(false);
 
-  // ✅ Initialize audio and auto-unlock on first user interaction
+  // Initialize audio
   useEffect(() => {
     audioRef.current = new Audio("/notification.wav");
     audioRef.current.volume = 0.8;
 
-    // ✅ Auto-initialize sound on ANY user interaction
     const initializeSound = () => {
       if (!soundInitializedRef.current && audioRef.current) {
         audioRef.current
@@ -50,15 +80,11 @@ function KitchenPageContent() {
             audioRef.current!.pause();
             audioRef.current!.currentTime = 0;
             soundInitializedRef.current = true;
-            console.log("🔔 Sound system initialized and ready!");
           })
-          .catch(() => {
-            console.log("⏳ Waiting for user interaction to enable sound...");
-          });
+          .catch(() => {});
       }
     };
 
-    // ✅ Listen for ANY user interaction
     const events = ["click", "touchstart", "keydown", "mousemove"];
     events.forEach((event) => {
       document.addEventListener(event, initializeSound, { once: true });
@@ -69,299 +95,422 @@ function KitchenPageContent() {
         audioRef.current.pause();
         audioRef.current = null;
       }
-      // Cleanup event listeners
       events.forEach((event) => {
         document.removeEventListener(event, initializeSound);
       });
     };
   }, []);
 
-  // ✅ Play notification sound
-  const playNotificationSound = () => {
+  const playNotificationSound = useCallback(() => {
     if (soundEnabled && audioRef.current && soundInitializedRef.current) {
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((error) => {
-        console.log("Sound play failed:", error);
-      });
+      audioRef.current.play().catch(() => {});
     }
-  };
+  }, [soundEnabled]);
 
-  async function fetchOrders() {
+  const fetchSets = useCallback(async () => {
     try {
       const response = await fetch("/api/kitchen/orders");
       const data = await response.json();
 
       if (data.success) {
-        const newOrders = data.data;
+        const newSets: KitchenSet[] = data.data;
 
-        // ✅ Check if there are NEW orders (count increased)
-        if (
-          previousOrderCountRef.current > 0 &&
-          newOrders.length > previousOrderCountRef.current
-        ) {
-          // New order detected!
-          playNotificationSound();
-
-          toast({
-            title: "🔔 New Order!",
-            description: `Order #${newOrders[0].orderNumber} received`,
-          });
+        // Check for new PENDING sets
+        const newPendingIds = new Set(
+          newSets.filter((s) => s.status === "PENDING").map((s) => s.id)
+        );
+        if (previousPendingIdsRef.current.size > 0) {
+          const brandNew = [...newPendingIds].filter(
+            (id) => !previousPendingIdsRef.current.has(id)
+          );
+          if (brandNew.length > 0) {
+            playNotificationSound();
+            const newSet = newSets.find((s) => s.id === brandNew[0]);
+            if (newSet) {
+              toast({
+                title: "New order received!",
+                description: `Order #${newSet.order.orderNumber} Set ${newSet.setNumber} is ready to prepare.`,
+                variant: "success",
+              });
+            }
+          }
         }
+        previousPendingIdsRef.current = newPendingIds;
 
-        // Update previous count
-        previousOrderCountRef.current = newOrders.length;
-        setOrders(newOrders);
+        // Check for modified sets (updatedAt changed for existing sets)
+        if (setTimestampsRef.current.size > 0) {
+          const modified = new Set<string>();
+          for (const set of newSets) {
+            const prev = setTimestampsRef.current.get(set.id);
+            if (prev && prev !== set.updatedAt) {
+              modified.add(set.id);
+              playNotificationSound();
+              toast({
+                title: "Heads up — Set Updated",
+                description: `Order #${set.order.orderNumber} Set ${set.setNumber} has been modified. Please check the updated items.`,
+              });
+            }
+          }
+          if (modified.size > 0) {
+            setModifiedSetIds(modified);
+            // Clear modified indicator after 15 seconds
+            setTimeout(() => setModifiedSetIds(new Set()), 15000);
+          }
+        }
+        // Store current timestamps
+        const newTimestamps = new Map<string, string>();
+        for (const set of newSets) {
+          newTimestamps.set(set.id, set.updatedAt);
+        }
+        setTimestampsRef.current = newTimestamps;
+
+        setSets(newSets);
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to load orders",
+        title: "Connection issue",
+        description: "Could not load orders. Will retry shortly.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }
+  }, [toast, playNotificationSound]);
 
-  async function markAsDelivered(orderId: string) {
+  useEffect(() => {
+    fetchSets();
+  }, [fetchSets]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchSets, 10000);
+    return () => clearInterval(interval);
+  }, [fetchSets]);
+
+  // ---------- Actions ----------
+
+  const updateSetStatus = async (
+    orderId: string,
+    setId: string,
+    newStatus: string
+  ) => {
     try {
-      const response = await fetch(`/api/kitchen/orders/${orderId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: "DELIVERED" }),
-      });
-
-      const data = await response.json();
-
+      const res = await apiFetch(
+        `/api/kitchen/orders/${orderId}/sets/${setId}/status`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
+      const data = await res.json();
       if (data.success) {
-        toast({
-          title: "Success",
-          description: "Order marked as delivered",
-        });
-        fetchOrders();
+        const label = newStatus === "PREPARING" ? "Preparing" : "Ready";
+        toast({ title: `Marked as ${label}`, description: `Set has been updated successfully.`, variant: "success" });
+        fetchSets();
       } else {
         toast({
-          title: "Error",
-          description: "Failed to update order",
+          title: "Something went wrong",
+          description: data.error || "Could not update the set. Please try again.",
           variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to update order",
+        title: "Something went wrong",
+        description: "Could not update set status. Please try again.",
         variant: "destructive",
       });
     }
+  };
+
+  // ---------- Derived ----------
+
+  const pendingSets = sets.filter((s) => s.status === "PENDING");
+  const preparingSets = sets.filter((s) => s.status === "PREPARING");
+  const readySets = sets.filter((s) => s.status === "READY");
+
+  // ---------- Helpers ----------
+
+  function timeAgo(dateStr: string | null) {
+    if (!dateStr) return "";
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ${mins % 60}m ago`;
   }
 
-  useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  function elapsedMinutes(dateStr: string | null) {
+    if (!dateStr) return 0;
+    return Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  }
 
-  const pendingOrders = orders.filter((order) => order.status !== "DELIVERED");
-  const completedOrders = orders.filter(
-    (order) => order.status === "DELIVERED"
-  );
+  function urgencyClass(mins: number) {
+    if (mins >= 20) return "border-red-500 bg-red-50";
+    if (mins >= 10) return "border-orange-400 bg-orange-50";
+    return "border-yellow-300";
+  }
+
+  // ---------- Set Card ----------
+
+  function SetCard({
+    set,
+    action,
+  }: {
+    set: KitchenSet;
+    action?: React.ReactNode;
+  }) {
+    const mins = elapsedMinutes(set.sentAt);
+    const isModified = modifiedSetIds.has(set.id);
+    const borderClass = isModified
+      ? "border-purple-500 bg-purple-50"
+      : set.status === "PENDING"
+        ? urgencyClass(mins)
+        : set.status === "PREPARING"
+          ? "border-orange-300"
+          : "border-green-300";
+
+    const activeItems = set.items.filter((i) => !i.itemStatus || i.itemStatus === "ACTIVE");
+    const changedItems = set.items.filter((i) => i.itemStatus === "CHANGED" || i.itemStatus === "CANCELLED" || i.itemStatus === "WASTED");
+
+    return (
+      <Card className={`border-2 ${borderClass} transition-all`}>
+        <CardHeader className="pb-2 pt-3 px-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">
+                #{set.order.orderNumber}
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  Set {set.setNumber}
+                </span>
+              </CardTitle>
+              <div className="flex gap-2 mt-1">
+                <Badge variant="outline" className="text-xs">
+                  {set.order.orderType === "DINEIN" ? "Dine-in" : "Takeaway"}
+                </Badge>
+                {set.order.tableNumber && (
+                  <Badge variant="outline" className="text-xs">
+                    T{set.order.tableNumber}
+                  </Badge>
+                )}
+                {set.order.createdById === null && (
+                  <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">
+                    QR
+                  </Badge>
+                )}
+                {isModified && (
+                  <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-300 border animate-pulse">
+                    <AlertCircle className="h-3 w-3 mr-1" />MODIFIED
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {timeAgo(set.sentAt)}
+              </div>
+              {set.status === "PENDING" && mins >= 10 && (
+                <span className="text-xs font-semibold text-red-600">
+                  {mins}m
+                </span>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-3">
+          <div className="space-y-1">
+            {activeItems.map((item) => (
+              <div key={item.id} className="flex justify-between text-sm">
+                <span className="font-medium">
+                  {item.quantity}x {item.name}
+                </span>
+              </div>
+            ))}
+            {changedItems.map((item) => (
+              <div key={item.id} className="flex justify-between text-sm opacity-40 line-through">
+                <span>{item.quantity}x {item.name}</span>
+                <Badge variant="outline" className="text-xs">{item.itemStatus}</Badge>
+              </div>
+            ))}
+          </div>
+          {action && <div className="mt-3 pt-2 border-t">{action}</div>}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ---------- Render ----------
 
   if (loading) {
     return (
       <div className="container py-10">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-pond-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading orders...</p>
+          <p className="text-gray-600">Loading kitchen display...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Header with Sound Toggle */}
-      <div className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white shadow-lg">
-        <div className="container px-4 py-6">
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg">
+        <div className="container px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Kitchen Display</h1>
-              <p className="text-blue-100 mt-1">Manage incoming orders</p>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <ChefHat className="h-7 w-7" />
+                Kitchen Display
+              </h1>
+              <p className="text-orange-100 text-sm mt-0.5">
+                {pendingSets.length} pending · {preparingSets.length} preparing · {readySets.length} ready
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              {/* ✅ Sound Toggle */}
+            <div className="flex items-center gap-2">
               <Button
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                variant={soundEnabled ? "secondary" : "outline"}
+                variant="secondary"
                 size="icon"
-                className="h-12 w-12"
+                className="h-10 w-10"
                 title={soundEnabled ? "Sound On" : "Sound Off"}
               >
                 {soundEnabled ? (
-                  <Volume2 className="h-6 w-6" />
+                  <Volume2 className="h-5 w-5" />
                 ) : (
-                  <VolumeX className="h-6 w-6" />
+                  <VolumeX className="h-5 w-5" />
                 )}
               </Button>
-
               <Button
-                onClick={fetchOrders}
+                onClick={fetchSets}
                 variant="secondary"
                 size="icon"
-                className="h-12 w-12"
+                className="h-10 w-10"
               >
-                <RefreshCw className="h-6 w-6" />
+                <RefreshCw className="h-5 w-5" />
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container px-4 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <Clock className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
-                <p className="text-2xl font-bold">{pendingOrders.length}</p>
-                <p className="text-sm text-muted-foreground">Pending Orders</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <CheckCircle className="h-8 w-8 mx-auto text-green-600 mb-2" />
-                <p className="text-2xl font-bold">{completedOrders.length}</p>
-                <p className="text-sm text-muted-foreground">Completed Today</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <RefreshCw className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                <p className="text-2xl font-bold">{orders.length}</p>
-                <p className="text-sm text-muted-foreground">Total Orders</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Pending Orders */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">
-            Pending Orders ({pendingOrders.length})
-          </h2>
-
-          {pendingOrders.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckCircle className="h-16 w-16 mx-auto text-green-600 mb-4" />
-                <p className="text-xl font-semibold">All caught up!</p>
-                <p className="text-muted-foreground">No pending orders</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingOrders.map((order) => (
-                <Card key={order.id} className="border-2 border-yellow-200">
-                  <CardHeader className="bg-yellow-50">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">
-                        Order #{order.orderNumber}
-                      </CardTitle>
-                      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">
-                        {order.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleTimeString()}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      <Badge variant="outline">
-                        {order.orderType === "DINEIN" ? "Dine-in" : "Takeaway"}
-                      </Badge>
-                      {order.tableNumber && (
-                        <Badge variant="outline">
-                          Table {order.tableNumber}
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
-                      {order.items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between items-center text-sm"
-                        >
-                          <span className="font-medium">
-                            {item.quantity}x {item.name}
-                          </span>
-                          <span className="text-muted-foreground">
-                            ฿{(item.price * item.quantity).toFixed(0)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 pt-4 border-t">
-                      <Button
-                        onClick={() => markAsDelivered(order.id)}
-                        className="w-full bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Mark as Delivered
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+      {/* Kanban Columns */}
+      <div className="p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[calc(100vh-120px)]">
+          {/* PENDING Column */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <Clock className="h-5 w-5 text-yellow-600" />
+              <h2 className="text-lg font-bold text-yellow-700">PENDING</h2>
+              <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300 border">
+                {pendingSets.length}
+              </Badge>
             </div>
-          )}
-        </div>
-
-        {/* Completed Orders */}
-        {completedOrders.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">
-              Completed Orders ({completedOrders.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {completedOrders.map((order) => (
-                <Card key={order.id} className="opacity-75">
-                  <CardHeader className="bg-green-50">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">
-                        Order #{order.orderNumber}
-                      </CardTitle>
-                      <Badge className="bg-green-100 text-green-700 border-green-300">
-                        DELIVERED
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleTimeString()}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-1">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="text-sm">
-                          {item.quantity}x {item.name}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {pendingSets.length === 0 ? (
+              <Card className="border-dashed border-2 border-gray-300">
+                <CardContent className="py-8 text-center">
+                  <CheckCircle className="h-10 w-10 mx-auto text-green-400 mb-2" />
+                  <p className="text-sm text-muted-foreground">No pending sets</p>
+                </CardContent>
+              </Card>
+            ) : (
+              pendingSets.map((set) => (
+                <SetCard
+                  key={set.id}
+                  set={set}
+                  action={
+                    <Button
+                      onClick={() =>
+                        updateSetStatus(set.order.id, set.id, "PREPARING")
+                      }
+                      className="w-full bg-orange-500 hover:bg-orange-600"
+                      size="sm"
+                    >
+                      <Flame className="h-4 w-4 mr-1" />
+                      Start Preparing
+                    </Button>
+                  }
+                />
+              ))
+            )}
           </div>
-        )}
+
+          {/* PREPARING Column */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <Flame className="h-5 w-5 text-orange-600" />
+              <h2 className="text-lg font-bold text-orange-700">PREPARING</h2>
+              <Badge className="bg-orange-100 text-orange-700 border-orange-300 border">
+                {preparingSets.length}
+              </Badge>
+            </div>
+            {preparingSets.length === 0 ? (
+              <Card className="border-dashed border-2 border-gray-300">
+                <CardContent className="py-8 text-center">
+                  <ChefHat className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Nothing cooking
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              preparingSets.map((set) => (
+                <SetCard
+                  key={set.id}
+                  set={set}
+                  action={
+                    <Button
+                      onClick={() =>
+                        updateSetStatus(set.order.id, set.id, "READY")
+                      }
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      size="sm"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Mark Ready
+                    </Button>
+                  }
+                />
+              ))
+            )}
+          </div>
+
+          {/* READY Column */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <UtensilsCrossed className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-green-700">READY</h2>
+              <Badge className="bg-green-100 text-green-700 border-green-300 border">
+                {readySets.length}
+              </Badge>
+            </div>
+            {readySets.length === 0 ? (
+              <Card className="border-dashed border-2 border-gray-300">
+                <CardContent className="py-8 text-center">
+                  <UtensilsCrossed className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    No sets ready
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              readySets.map((set) => (
+                <SetCard
+                  key={set.id}
+                  set={set}
+                  action={
+                    <div className="text-center text-sm text-green-700 font-medium flex items-center justify-center gap-1">
+                      <CheckCircle className="h-4 w-4" />
+                      Ready — waiting for server
+                    </div>
+                  }
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

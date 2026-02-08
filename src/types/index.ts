@@ -1,6 +1,36 @@
-import type { MenuItem, Order, OrderItem, User, Address } from "@prisma/client";
+import type {
+  MenuItem,
+  Order,
+  OrderItem,
+  User,
+  Address,
+  OrderSet,
+  OrderLog,
+  ActionRequest,
+  SetStatus,
+  ItemStatus,
+  ActionRequestType,
+  ActionRequestStatus,
+  OrderStatus,
+  Role,
+} from "@prisma/client";
 
-export type { MenuItem, Order, OrderItem, User, Address };
+export type {
+  MenuItem,
+  Order,
+  OrderItem,
+  User,
+  Address,
+  OrderSet,
+  OrderLog,
+  ActionRequest,
+  SetStatus,
+  ItemStatus,
+  ActionRequestType,
+  ActionRequestStatus,
+  OrderStatus,
+  Role,
+};
 
 export interface CartItem {
   id: string;
@@ -10,11 +40,30 @@ export interface CartItem {
   image: string;
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  token?: string;
+  user?: Omit<User, "password">;
+  error?: string;
+}
+
 export interface OrderWithItems extends Order {
   items: (OrderItem & {
     menuItem: MenuItem;
   })[];
   address: Address;
+  sets?: (OrderSet & {
+    items: (OrderItem & {
+      menuItem: MenuItem;
+    })[];
+  })[];
 }
 
 export interface UserWithOrders extends User {

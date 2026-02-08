@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-type UserRole = "CUSTOMER" | "KITCHEN" | "COUNTER" | "ADMIN";
+type UserRole = "CUSTOMER" | "SERVER" | "KITCHEN" | "COUNTER" | "ADMIN";
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -23,6 +23,8 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
         // Redirect to their default page based on role
         if (user.role === "CUSTOMER") {
           router.push("/menu");
+        } else if (user.role === "SERVER") {
+          router.push("/server");
         } else if (user.role === "KITCHEN") {
           router.push("/kitchen");
         } else if (user.role === "COUNTER") {

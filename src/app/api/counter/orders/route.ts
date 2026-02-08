@@ -1,31 +1,40 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, handleAuthError } from "@/lib/auth";
 
-// GET - Get last 30 days orders for counter (payment view)
-export async function GET() {
+// GET - Get today's orders for counter (READY_TO_PAY + PAID)
+export async function GET(req: NextRequest) {
   try {
-    // Get orders from last 30 days
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    await requireAuth(req, { roles: ["COUNTER", "ADMIN"] });
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
     const orders = await prisma.order.findMany({
       where: {
-        createdAt: {
-          gte: thirtyDaysAgo,
-        },
+        createdAt: { gte: startOfDay },
+        status: { in: ["READY_TO_PAY", "PAID", "CLOSED"] },
       },
       include: {
+        sets: {
+          include: {
+            items: true,
+          },
+          orderBy: { setNumber: "asc" },
+        },
         items: true,
+        createdBy: {
+          select: { id: true, name: true },
+        },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: orders,
-    });
+    return NextResponse.json({ success: true, data: orders });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Fetch counter orders error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch orders" },

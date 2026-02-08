@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// PATCH - Update order status (mark as delivered)
+// PATCH - Update order status (legacy: mark as delivered)
+// Kept for backward compatibility with counter page
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,14 +13,11 @@ export async function PATCH(
     const { status } = body;
 
     const order = await prisma.order.update({
-      where: {
-        id: id,
-      },
-      data: {
-        status: status,
-      },
+      where: { id },
+      data: { status },
       include: {
         items: true,
+        sets: { include: { items: true } },
       },
     });
 

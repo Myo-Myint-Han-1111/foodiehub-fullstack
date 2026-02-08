@@ -49,6 +49,11 @@ export default function Header() {
           { href: "/counter", label: "Counter" },
           { href: "/orders", label: "All Orders" },
         ];
+      case "SERVER":
+        return [
+          { href: "/server", label: "Dashboard" },
+          { href: "/orders", label: "Orders" },
+        ];
       case "ADMIN":
         return [
           { href: "/admin", label: "Staff" },
@@ -75,6 +80,8 @@ export default function Header() {
         return "/kitchen";
       case "COUNTER":
         return "/counter";
+      case "SERVER":
+        return "/server";
       case "ADMIN":
         return "/admin";
       default:
@@ -102,14 +109,14 @@ export default function Header() {
         <Link href={getLogoLink()} className="flex items-center space-x-2">
           <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-blue-pond-500">
             <Image
-              src="/bluepond-logo.jpg"
-              alt="Blue Pond Cafe"
+              src="/foodiehub.png"
+              alt="Foodie Hub"
               fill
               className="object-cover"
               priority
             />
           </div>
-          <span className="font-bold text-base sm:text-xl">BluePond</span>
+          <span className="font-bold text-base sm:text-xl">FoodieHub</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -129,8 +136,8 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Desktop Actions */}
-        <div className="hidden lg:flex items-center space-x-3 lg:space-x-4">
+        {/* Right-side Actions */}
+        <div className="flex items-center gap-2">
           {shouldShowCart() && (
             <Link href="/cart">
               <Button
@@ -149,7 +156,7 @@ export default function Header() {
           )}
 
           {user && !hasQRSession && (
-            <div className="flex items-center gap-2 lg:gap-3">
+            <>
               <div className="text-right hidden lg:block">
                 <span className="text-sm font-medium block">{user.name}</span>
                 <span className="text-xs bg-blue-pond-100 text-blue-pond-700 px-2 py-0.5 rounded">
@@ -165,30 +172,14 @@ export default function Header() {
               >
                 <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Mobile/Tablet Actions */}
-        <div className="flex lg:hidden items-center gap-2">
-          {shouldShowCart() && (
-            <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                <ShoppingCart className="h-4 w-4" />
-                {itemCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px]">
-                    {itemCount}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
+            </>
           )}
 
           {shouldShowMobileMenu() && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 lg:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (

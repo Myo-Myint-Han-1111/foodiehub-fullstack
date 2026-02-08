@@ -5,13 +5,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   RefreshCw,
   ShoppingCart,
   Clock,
   CheckCircle,
-  Calendar,
+  User,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -23,16 +22,24 @@ interface OrderItem {
   price: number;
 }
 
+interface OrderSet {
+  id: string;
+  setNumber: number;
+  status: string;
+}
+
 interface Order {
   id: string;
   orderNumber: number;
   orderType: string;
   tableNumber: string | null;
   items: OrderItem[];
+  sets?: OrderSet[];
   total: number;
   status: string;
   paid: boolean;
   createdAt: string;
+  createdBy?: { id: string; name: string } | null;
 }
 
 export default function OrdersPage() {
@@ -44,13 +51,10 @@ export default function OrdersPage() {
   );
   const [isCustomerSession, setIsCustomerSession] = useState(false);
 
-  // ✅ NEW: Date filter state for staff
-  const [filterMode, setFilterMode] = useState<"quick" | "custom">("quick");
+  // Quick filter for staff
   const [quickFilter, setQuickFilter] = useState<"today" | "month" | "all">(
     "today"
   );
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
 
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
@@ -66,38 +70,22 @@ export default function OrdersPage() {
     setIsCustomerSession(hasQRSession || user?.role === "CUSTOMER");
   }, [user]);
 
-  // ✅ NEW: Calculate date range based on filter
+  // Calculate date range based on filter
   const getDateRange = () => {
     const now = new Date();
 
-    if (filterMode === "quick") {
-      switch (quickFilter) {
-        case "today":
-          // Start of today to now
-          const todayStart = new Date(now);
-          todayStart.setHours(0, 0, 0, 0);
-          return { start: todayStart, end: now };
-
-        case "month":
-          // Start of this month to now
-          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          return { start: monthStart, end: now };
-
-        case "all":
-          return null; // No date filter
+    switch (quickFilter) {
+      case "today": {
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        return { start: todayStart, end: now };
       }
-    } else {
-      // Custom date range
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        return { start, end };
+      case "month": {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { start: monthStart, end: now };
       }
-      return null;
+      case "all":
+        return null;
     }
   };
 
@@ -106,26 +94,20 @@ export default function OrdersPage() {
       const orderType = sessionStorage.getItem("orderType");
       const tableNumber = sessionStorage.getItem("tableNumber");
 
-      // Determine if this is a customer view or staff view
       const isStaffUser =
         user && ["KITCHEN", "COUNTER", "ADMIN"].includes(user.role);
 
       const params = new URLSearchParams();
 
       if (isStaffUser) {
-        // ✅ Staff: Use date filters
         const dateRange = getDateRange();
-
         if (dateRange) {
           params.append("startDate", dateRange.start.toISOString());
           params.append("endDate", dateRange.end.toISOString());
         }
-        // If no date range, fetch all orders (no time filter)
       } else {
-        // Customer: Use 2h filter
         params.append("timeFilter", "2h");
 
-        // Filter by session data
         if (orderType === "dine-in" && tableNumber) {
           params.append("tableNumber", tableNumber);
         } else if (orderType === "takeaway") {
@@ -141,8 +123,8 @@ export default function OrdersPage() {
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to load orders",
+        title: "Connection issue",
+        description: "Could not load your orders. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -155,37 +137,34 @@ export default function OrdersPage() {
     const interval = setInterval(fetchOrders, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quickFilter, startDate, endDate, filterMode]);
+  }, [quickFilter]);
 
   function getStatusBadge(status: string) {
-    const styles = {
-      PENDING: "bg-yellow-100 text-yellow-700 border-yellow-300",
-      CONFIRMED: "bg-blue-100 text-blue-700 border-blue-300",
-      PREPARING: "bg-purple-100 text-purple-700 border-purple-300",
-      READY: "bg-orange-100 text-orange-700 border-orange-300",
-      DELIVERED: "bg-green-100 text-green-700 border-green-300",
+    const styles: Record<string, string> = {
+      OPEN: "bg-yellow-100 text-yellow-700 border-yellow-300",
+      READY_TO_PAY: "bg-blue-100 text-blue-700 border-blue-300",
+      PAID: "bg-green-100 text-green-700 border-green-300",
+      CLOSED: "bg-gray-100 text-gray-700 border-gray-300",
       CANCELLED: "bg-red-100 text-red-700 border-red-300",
     };
     return (
-      <Badge
-        className={`${styles[status as keyof typeof styles] || ""} border`}
-      >
-        {status}
+      <Badge className={`${styles[status] || ""} border text-[10px] sm:text-xs`}>
+        {status.replace("_", " ")}
       </Badge>
     );
   }
 
   function getStatusIcon(status: string) {
     switch (status) {
-      case "PENDING":
-      case "CONFIRMED":
-      case "PREPARING":
-      case "READY":
-        return <Clock className="h-5 w-5 text-yellow-600" />;
-      case "DELIVERED":
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case "OPEN":
+        return <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />;
+      case "READY_TO_PAY":
+        return <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />;
+      case "PAID":
+      case "CLOSED":
+        return <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-600" />;
+        return <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />;
     }
   }
 
@@ -207,13 +186,13 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-pond-500 to-blue-pond-700 text-white shadow-lg">
-        <div className="container px-4 py-6">
+        <div className="container px-3 sm:px-4 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">
+              <h1 className="text-xl sm:text-3xl font-bold">
                 {isCustomerSession ? "My Orders" : "All Orders"}
               </h1>
-              <p className="text-blue-100 mt-1">
+              <p className="text-blue-100 mt-0.5 sm:mt-1 text-xs sm:text-base">
                 {isCustomerSession
                   ? sessionOrderType === "dine-in"
                     ? `Table ${sessionTableNumber} orders`
@@ -225,135 +204,47 @@ export default function OrdersPage() {
               onClick={fetchOrders}
               variant="secondary"
               size="icon"
-              className="h-12 w-12"
+              className="h-9 w-9 sm:h-12 sm:w-12"
             >
-              <RefreshCw className="h-6 w-6" />
+              <RefreshCw className="h-4 w-4 sm:h-6 sm:w-6" />
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="container px-4 py-8">
-        {/* ✅ NEW: Date Filter Section (Only for Staff) */}
+      <div className="container px-3 sm:px-4 py-4 sm:py-8">
+        {/* Compact Filter Bar (Staff only) */}
         {isStaffUser && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Date Filter
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Filter Mode Toggle */}
-              <div className="flex gap-2 mb-4">
-                <Button
-                  onClick={() => setFilterMode("quick")}
-                  variant={filterMode === "quick" ? "default" : "outline"}
-                  className="flex-1"
-                >
-                  Quick Filter
-                </Button>
-                <Button
-                  onClick={() => setFilterMode("custom")}
-                  variant={filterMode === "custom" ? "default" : "outline"}
-                  className="flex-1"
-                >
-                  Custom Range
-                </Button>
-              </div>
-
-              {/* Quick Filter Buttons */}
-              {filterMode === "quick" && (
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    onClick={() => setQuickFilter("today")}
-                    variant={quickFilter === "today" ? "default" : "outline"}
-                  >
-                    Today
-                  </Button>
-                  <Button
-                    onClick={() => setQuickFilter("month")}
-                    variant={quickFilter === "month" ? "default" : "outline"}
-                  >
-                    This Month
-                  </Button>
-                  <Button
-                    onClick={() => setQuickFilter("all")}
-                    variant={quickFilter === "all" ? "default" : "outline"}
-                  >
-                    All Time
-                  </Button>
-                </div>
-              )}
-
-              {/* Custom Date Range Picker */}
-              {filterMode === "custom" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Start Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      max={endDate || undefined}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      End Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      min={startDate || undefined}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Active Filter Display */}
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-900">
-                  {filterMode === "quick" ? (
-                    <>
-                      Showing: {quickFilter === "today" && "Today's orders"}
-                      {quickFilter === "month" && "This month's orders"}
-                      {quickFilter === "all" && "All orders"}
-                    </>
-                  ) : (
-                    <>
-                      {startDate && endDate ? (
-                        <>
-                          Showing: {new Date(startDate).toLocaleDateString()} -{" "}
-                          {new Date(endDate).toLocaleDateString()}
-                        </>
-                      ) : (
-                        "Please select start and end dates"
-                      )}
-                    </>
-                  )}
-                </p>
-                <p className="text-sm text-blue-700 mt-1">
-                  {orders.length} order{orders.length !== 1 ? "s" : ""} found
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
+            {(["today", "month", "all"] as const).map((filter) => (
+              <Button
+                key={filter}
+                onClick={() => setQuickFilter(filter)}
+                variant={quickFilter === filter ? "default" : "outline"}
+                size="sm"
+                className="text-xs sm:text-sm"
+              >
+                {filter === "today" && "Today"}
+                {filter === "month" && "This Month"}
+                {filter === "all" && "All Time"}
+              </Button>
+            ))}
+            <span className="text-xs sm:text-sm text-muted-foreground ml-auto">
+              {orders.length} order{orders.length !== 1 ? "s" : ""}
+            </span>
+          </div>
         )}
 
         {/* Orders List */}
         {orders.length === 0 ? (
           <Card className="max-w-md mx-auto">
-            <CardContent className="pt-16 pb-16 text-center">
-              <ShoppingCart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-2xl font-bold mb-2">No orders yet</h2>
-              <p className="text-muted-foreground mb-6">
+            <CardContent className="pt-12 sm:pt-16 pb-12 sm:pb-16 text-center">
+              <ShoppingCart className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground mb-4" />
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">No orders yet</h2>
+              <p className="text-sm sm:text-base text-muted-foreground mb-6">
                 {isCustomerSession
                   ? "Start ordering to see your orders here"
-                  : "No orders have been placed yet"}
+                  : "No orders found for this period"}
               </p>
               {isCustomerSession && (
                 <Link href="/menu">
@@ -363,74 +254,90 @@ export default function OrdersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Orders List */}
-            <div className="space-y-4">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+            {/* Orders */}
+            <div className="space-y-3 sm:space-y-4">
               {orders.map((order) => (
                 <Card
                   key={order.id}
                   className="overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 pb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                  <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 px-3 sm:px-6 py-3 sm:pb-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                         {getStatusIcon(order.status)}
-                        <div>
-                          <CardTitle className="text-lg">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base sm:text-lg">
                             Order #{order.orderNumber}
                           </CardTitle>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-[10px] sm:text-sm text-muted-foreground">
                             {new Date(order.createdAt).toLocaleString()}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex flex-wrap gap-1 justify-end flex-shrink-0">
                         {getStatusBadge(order.status)}
                         {order.paid && (
-                          <Badge className="ml-2 bg-green-100 text-green-700 border border-green-300">
+                          <Badge className="bg-green-100 text-green-700 border border-green-300 text-[10px] sm:text-xs">
                             PAID
                           </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-4 mt-2 text-sm">
+                    <div className="flex flex-wrap gap-2 sm:gap-4 mt-1.5 sm:mt-2 text-xs sm:text-sm">
                       <span className="text-muted-foreground">
-                        Type:{" "}
-                        <span className="font-medium text-foreground">
-                          {order.orderType === "DINEIN"
-                            ? "Dine-in"
-                            : "Takeaway"}
-                        </span>
+                        {order.orderType === "DINEIN" ? "Dine-in" : "Takeaway"}
                       </span>
                       {order.tableNumber && (
                         <span className="text-muted-foreground">
-                          Table:{" "}
-                          <span className="font-medium text-foreground">
-                            {order.tableNumber}
-                          </span>
+                          Table {order.tableNumber}
+                        </span>
+                      )}
+                      {isStaffUser && order.createdBy && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          {order.createdBy.name}
+                        </span>
+                      )}
+                      {isStaffUser && !order.createdBy && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          QR Customer
                         </span>
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
+                  <CardContent className="px-3 sm:px-6 pt-3 sm:pt-4">
+                    {/* QR order awaiting server approval */}
+                    {order.sets?.length &&
+                      order.sets.length > 0 &&
+                      order.sets[0].status === "DRAFT" &&
+                      order.status === "OPEN" && (
+                        <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm text-amber-700 font-medium">
+                            Waiting for server confirmation
+                          </span>
+                        </div>
+                      )}
+                    <div className="space-y-1.5 sm:space-y-2">
                       {order.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between text-sm"
+                          className="flex items-center justify-between text-xs sm:text-sm"
                         >
-                          <span>
+                          <span className="truncate mr-2">
                             {item.quantity}x {item.name}
                           </span>
-                          <span className="font-medium">
+                          <span className="font-medium flex-shrink-0">
                             ฿{(item.price * item.quantity).toFixed(0)}
                           </span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                      <span className="font-bold">Total:</span>
-                      <span className="text-xl font-bold text-green-600">
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex justify-between items-center">
+                      <span className="font-bold text-sm sm:text-base">Total:</span>
+                      <span className="text-lg sm:text-xl font-bold text-green-600">
                         ฿{order.total.toFixed(0)}
                       </span>
                     </div>
@@ -442,11 +349,11 @@ export default function OrdersPage() {
             {/* Order Again Button - ONLY for Customer QR Sessions */}
             {isCustomerSession && (
               <Card className="border-2 border-blue-200 bg-blue-50">
-                <CardContent className="p-6 text-center">
-                  <h3 className="font-bold text-lg mb-2">
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <h3 className="font-bold text-base sm:text-lg mb-2">
                     Want to order more?
                   </h3>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-gray-600 text-sm mb-4">
                     Browse our menu and add more items to your order
                   </p>
                   <Link href="/menu">

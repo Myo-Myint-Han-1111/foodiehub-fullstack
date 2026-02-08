@@ -64,43 +64,10 @@ export default function LandingPage() {
             </CardContent>
           </Card>
 
-          {/* Info Section */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-4xl mb-3">⚡</div>
-                <h3 className="font-bold text-lg mb-2">Fast & Easy</h3>
-                <p className="text-gray-600 text-sm">
-                  Order in seconds without waiting for a waiter
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-4xl mb-3">🔒</div>
-                <h3 className="font-bold text-lg mb-2">Secure</h3>
-                <p className="text-gray-600 text-sm">
-                  QR code verification ensures authentic orders
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-4xl mb-3">✨</div>
-                <h3 className="font-bold text-lg mb-2">Contactless</h3>
-                <p className="text-gray-600 text-sm">
-                  Safe and hygienic ordering experience
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Notice */}
           <div className="mt-12 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
             <p className="text-blue-800 font-medium">
-              ⚠️ <strong>Notice:</strong> Online ordering is only available
+              <strong>Notice:</strong> Online ordering is only available
               in-store via QR code. Please visit our restaurant to place an
               order.
             </p>

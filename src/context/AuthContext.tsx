@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-type UserRole = "CUSTOMER" | "KITCHEN" | "COUNTER" | "ADMIN";
+type UserRole = "CUSTOMER" | "SERVER" | "KITCHEN" | "COUNTER" | "ADMIN";
 
 interface User {
   id: string;
@@ -20,6 +20,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -29,14 +30,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   // Check if user is logged in on mount
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
+    }
+    if (storedToken) {
+      setToken(storedToken);
     }
     setIsLoading(false);
   }, []);
@@ -53,11 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success) {
         setUser(data.user);
+        setToken(data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("token", data.token);
 
         // Redirect based on role
         if (data.user.role === "CUSTOMER") {
           router.push("/menu");
+        } else if (data.user.role === "SERVER") {
+          router.push("/server");
         } else if (data.user.role === "KITCHEN") {
           router.push("/kitchen");
         } else if (data.user.role === "COUNTER") {
@@ -75,12 +85,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     router.push("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

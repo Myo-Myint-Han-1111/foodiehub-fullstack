@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -17,8 +18,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  addresses Address[]
-  orders    Order[]
+  addresses        Address[]
+  orders           Order[]
+  createdOrders    Order[]         @relation("OrderCreatedBy")
+  orderLogs        OrderLog[]      @relation("LogPerformedBy")
+  approvedLogs     OrderLog[]      @relation("LogApprovedBy")
+  actionRequests   ActionRequest[] @relation("RequestCreatedBy")
+  approvedRequests ActionRequest[] @relation("RequestApprovedBy")
 }
 
 model MenuItem {
@@ -41,35 +47,113 @@ model Order {
   id          String      @id @default(cuid())
   orderNumber Int         @default(autoincrement())
   userId      String?
+  createdById String?
   orderType   OrderType   @default(DINEIN)
   tableNumber String?
   subtotal    Float       @default(0)
   tax         Float       @default(0)
   deliveryFee Float       @default(0)
   total       Float
-  status      OrderStatus @default(PENDING)
-  paid        Boolean     @default(false)
-  createdAt   DateTime    @default(now())
+  status        OrderStatus @default(OPEN)
+  paid          Boolean     @default(false)
+  paymentMethod String?
+  paidAt        DateTime?
+  createdAt     DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   user      User?       @relation(fields: [userId], references: [id])
+  createdBy User?       @relation("OrderCreatedBy", fields: [createdById], references: [id])
   items     OrderItem[]
+  sets      OrderSet[]
+  logs      OrderLog[]
   address   Address?    @relation(fields: [addressId], references: [id])
   addressId String?
 
   @@index([orderNumber])
+  @@index([status])
+  @@index([tableNumber])
+  @@index([createdAt])
+}
+
+model OrderSet {
+  id        String    @id @default(cuid())
+  orderId   String
+  setNumber Int
+  status    SetStatus @default(DRAFT)
+  sentAt    DateTime?
+  readyAt   DateTime?
+  servedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  order Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@unique([orderId, setNumber])
+  @@index([orderId])
+  @@index([status])
 }
 
 model OrderItem {
-  id         String  @id @default(cuid())
-  orderId    String
-  name       String
-  quantity   Int
-  price      Float
+  id           String     @id @default(cuid())
+  orderId      String
+  setId        String?
+  name         String
+  quantity     Int
+  price        Float
+  itemStatus   ItemStatus @default(ACTIVE)
+  cancelReason String?
+  changedToId  String?    @unique
+  changedFromId String?   @unique
 
   order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  set        OrderSet? @relation(fields: [setId], references: [id])
   menuItem   MenuItem? @relation(fields: [menuItemId], references: [id])
   menuItemId String?
+  changedTo  OrderItem? @relation("ItemChange", fields: [changedToId], references: [id])
+  changedFrom OrderItem? @relation("ItemChange")
+
+  @@index([orderId])
+  @@index([setId])
+  @@index([itemStatus])
+}
+
+model OrderLog {
+  id            String   @id @default(cuid())
+  orderId       String
+  action        String
+  details       Json?
+  performedById String
+  approvedById  String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  performedBy User  @relation("LogPerformedBy", fields: [performedById], references: [id])
+  approvedBy  User? @relation("LogApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model ActionRequest {
+  id            String              @id @default(cuid())
+  type          ActionRequestType
+  orderItemId   String
+  orderId       String
+  reason        String
+  status        ActionRequestStatus @default(PENDING)
+  newMenuItemId String?
+  createdById   String
+  approvedById  String?
+  resolvedAt    DateTime?
+  createdAt     DateTime            @default(now())
+
+  createdBy  User @relation("RequestCreatedBy", fields: [createdById], references: [id])
+  approvedBy User? @relation("RequestApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([status])
+  @@index([orderId])
 }
 
 model Address {
@@ -89,6 +173,7 @@ model Address {
 
 enum Role {
   CUSTOMER
+  SERVER
   KITCHEN
   COUNTER
   ADMIN
@@ -111,10 +196,37 @@ enum OrderType {
 }
 
 enum OrderStatus {
+  OPEN
+  READY_TO_PAY
+  PAID
+  CLOSED
+  CANCELLED
+}
+
+enum SetStatus {
+  DRAFT
   PENDING
-  CONFIRMED
   PREPARING
   READY
-  DELIVERED
+  SERVED
   CANCELLED
+  WASTED
+}
+
+enum ItemStatus {
+  ACTIVE
+  CHANGED
+  CANCELLED
+  WASTED
+}
+
+enum ActionRequestType {
+  CANCELLATION
+  MODIFICATION
+}
+
+enum ActionRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
 }

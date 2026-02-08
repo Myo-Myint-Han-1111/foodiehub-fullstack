@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { signToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,8 +40,11 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...userWithoutPassword } = user;
 
+    const token = signToken(user);
+
     return NextResponse.json({
       success: true,
+      token,
       user: userWithoutPassword,
     });
   } catch (error) {

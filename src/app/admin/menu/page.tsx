@@ -86,8 +86,8 @@ function AdminMenuContent() {
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to load menu items",
+        title: "Connection issue",
+        description: "Could not load menu items. Please refresh the page.",
         variant: "destructive",
       });
     } finally {
@@ -137,8 +137,8 @@ function AdminMenuContent() {
     const price = parseFloat(formData.price);
     if (isNaN(price) || price <= 0) {
       toast({
-        title: "Error",
-        description: "Please enter a valid price",
+        title: "Invalid price",
+        description: "Please enter a valid price greater than 0.",
         variant: "destructive",
       });
       return;
@@ -148,8 +148,8 @@ function AdminMenuContent() {
     const rating = parseFloat(formData.rating);
     if (isNaN(rating) || rating < 0 || rating > 5) {
       toast({
-        title: "Error",
-        description: "Rating must be between 0 and 5",
+        title: "Invalid rating",
+        description: "Rating must be between 0 and 5.",
         variant: "destructive",
       });
       return;
@@ -173,22 +173,23 @@ function AdminMenuContent() {
 
       if (data.success) {
         toast({
-          title: "Success",
-          description: editingItem ? "Menu item updated" : "Menu item created",
+          title: editingItem ? "Item updated!" : "Item created!",
+          description: editingItem ? "Menu item has been updated." : "New menu item has been added.",
+          variant: "success",
         });
         setDialogOpen(false);
         fetchMenuItems();
       } else {
         toast({
-          title: "Error",
-          description: data.error || "Operation failed",
+          title: "Could not save",
+          description: data.error || "Something went wrong. Please check the details and try again.",
           variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to save menu item",
+        title: "Something went wrong",
+        description: "Could not save the menu item. Please try again.",
         variant: "destructive",
       });
     }
@@ -206,21 +207,22 @@ function AdminMenuContent() {
 
       if (data.success) {
         toast({
-          title: "Success",
-          description: "Menu item deleted",
+          title: "Item deleted",
+          description: "Menu item has been removed.",
+          variant: "success",
         });
         fetchMenuItems();
       } else {
         toast({
-          title: "Error",
-          description: data.error || "Failed to delete menu item",
+          title: "Could not delete",
+          description: data.error || "Something went wrong. Please try again.",
           variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to delete menu item",
+        title: "Something went wrong",
+        description: "Could not delete the menu item. Please try again.",
         variant: "destructive",
       });
     }
@@ -238,15 +240,16 @@ function AdminMenuContent() {
 
       if (data.success) {
         toast({
-          title: "Success",
-          description: `Item ${!item.available ? "enabled" : "disabled"}`,
+          title: `Item ${!item.available ? "enabled" : "disabled"}`,
+          description: `Menu item has been ${!item.available ? "made available" : "hidden from menu"}.`,
+          variant: "success",
         });
         fetchMenuItems();
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to update availability",
+        title: "Something went wrong",
+        description: "Could not update availability. Please try again.",
         variant: "destructive",
       });
     }
@@ -282,7 +285,7 @@ function AdminMenuContent() {
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
         <div className="container px-4 py-4 sm:py-6 max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -290,13 +293,13 @@ function AdminMenuContent() {
                 <UtensilsCrossed className="h-6 w-6 sm:h-8 sm:w-8" />
                 Menu Management
               </h1>
-              <p className="text-orange-100 mt-1 text-sm sm:text-base">
+              <p className="text-purple-100 mt-1 text-sm sm:text-base">
                 Manage restaurant menu items
               </p>
             </div>
             <Button
               onClick={openCreateDialog}
-              className="bg-white text-orange-600 hover:bg-orange-50 w-full sm:w-auto"
+              className="bg-white text-purple-600 hover:bg-purple-50 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
               Add Menu Item
@@ -448,7 +451,7 @@ function AdminMenuContent() {
                               <span>•</span>
                               <span>{item.prepTime}</span>
                             </div>
-                            <p className="text-2xl font-black text-orange-600 mt-1">
+                            <p className="text-2xl font-black text-purple-600 mt-1">
                               ฿{item.price.toFixed(0)}
                             </p>
                           </div>
@@ -610,18 +613,26 @@ function AdminMenuContent() {
               </div>
 
               <div>
-                <Label htmlFor="image">Image URL *</Label>
-                {/* ✅ FIXED: Display current image URL in edit mode */}
+                <Label htmlFor="image">Photo *</Label>
                 <Input
-                  id="image"
-                  value={formData.image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.value })
-                  }
-                  placeholder="https://example.com/image.jpg"
-                  required
+                  id="imageUpload"
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast({ title: "File too large", description: "Please select an image under 5MB", variant: "destructive" });
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData({ ...formData, image: reader.result as string });
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                  className="cursor-pointer"
                 />
-                {/* ✅ FIXED: Show image preview if URL exists */}
                 {formData.image && (
                   <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden bg-gray-100">
                     <Image
@@ -637,8 +648,17 @@ function AdminMenuContent() {
                   </div>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  Use direct image URL (e.g., from Unsplash)
+                  Upload a photo (max 5MB) or paste a URL below
                 </p>
+                <Input
+                  id="imageUrl"
+                  value={formData.image.startsWith("data:") ? "" : formData.image}
+                  onChange={(e) =>
+                    setFormData({ ...formData, image: e.target.value })
+                  }
+                  placeholder="Or paste image URL..."
+                  className="mt-2"
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -666,7 +686,7 @@ function AdminMenuContent() {
               </Button>
               <Button
                 type="submit"
-                className="bg-orange-600 hover:bg-orange-700"
+                className="bg-purple-600 hover:bg-purple-700"
               >
                 {editingItem ? "Update Item" : "Create Item"}
               </Button>

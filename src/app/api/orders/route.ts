@@ -59,25 +59,47 @@ export async function POST(req: NextRequest) {
 
     console.log("💾 Creating order in database...");
 
-    // Create order
-    const order = await prisma.order.create({
-      data: {
-        orderType: orderTypeEnum,
-        tableNumber: orderType === "dine-in" ? tableNumber : null,
-        total: total,
-        subtotal: total,
-        items: {
-          create: items.map((item: OrderItemInput) => ({
-            menuItemId: item.menuItemId || null,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-          })),
+    // Create order with set in a transaction (QR orders start as DRAFT)
+    const order = await prisma.$transaction(async (tx) => {
+      // 1. Create the order
+      const newOrder = await tx.order.create({
+        data: {
+          orderType: orderTypeEnum,
+          tableNumber: orderType === "dine-in" ? tableNumber : null,
+          total: total,
+          subtotal: total,
         },
-      },
-      include: {
-        items: true,
-      },
+      });
+
+      // 2. Create OrderSet (DRAFT for QR orders — needs server approval)
+      const orderSet = await tx.orderSet.create({
+        data: {
+          orderId: newOrder.id,
+          setNumber: 1,
+          status: "DRAFT",
+        },
+      });
+
+      // 3. Create OrderItems linked to both order and set
+      await tx.orderItem.createMany({
+        data: items.map((item: OrderItemInput) => ({
+          orderId: newOrder.id,
+          setId: orderSet.id,
+          menuItemId: item.menuItemId || null,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      });
+
+      // 4. Return full order with sets and items
+      return tx.order.findUniqueOrThrow({
+        where: { id: newOrder.id },
+        include: {
+          items: true,
+          sets: { include: { items: true } },
+        },
+      });
     });
 
     console.log("✅ Order created successfully:", order.id);
@@ -196,6 +218,8 @@ export async function GET(req: NextRequest) {
       where: whereClause,
       include: {
         items: true,
+        sets: { include: { items: true } },
+        createdBy: { select: { id: true, name: true } },
       },
       orderBy: {
         createdAt: "desc",
