@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, handleAuthError } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    await requireAuth(req, { roles: ["ADMIN"] });
+
     const { searchParams } = new URL(req.url);
     const period = searchParams.get("period") || "daily"; // daily, monthly, yearly
 
@@ -24,35 +27,53 @@ export async function GET(req: NextRequest) {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }
 
-    // Get orders within date range
-    const orders = await prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: startDate,
-        },
-        status: {
-          not: "CANCELLED",
-        },
-      },
-      include: {
-        items: true,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
+    const dateFilter = {
+      createdAt: { gte: startDate },
+      status: { not: "CANCELLED" as const },
+    };
 
-    // Calculate statistics
-    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
-    const paidOrders = orders.filter((o) => o.paid).length;
+    // Run all queries in parallel
+    const [salesAgg, totalOrders, paidOrders, topItemsRaw, chartOrders] =
+      await Promise.all([
+        // Total sales via DB aggregation
+        prisma.order.aggregate({
+          where: dateFilter,
+          _sum: { total: true },
+        }),
+        // Total order count
+        prisma.order.count({ where: dateFilter }),
+        // Paid order count
+        prisma.order.count({
+          where: { ...dateFilter, paid: true },
+        }),
+        // Top items via groupBy
+        prisma.orderItem.groupBy({
+          by: ["name"],
+          where: {
+            itemStatus: "ACTIVE",
+            order: dateFilter,
+          },
+          _sum: { quantity: true },
+          _count: { id: true },
+          orderBy: { _sum: { quantity: "desc" } },
+          take: 10,
+        }),
+        // Minimal data for chart
+        prisma.order.findMany({
+          where: dateFilter,
+          select: { createdAt: true, total: true },
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
+
+    const totalSales = salesAgg._sum.total || 0;
     const unpaidOrders = totalOrders - paidOrders;
 
     // Group by date for chart
     const salesByDate: { [key: string]: number } = {};
     const ordersByDate: { [key: string]: number } = {};
 
-    orders.forEach((order) => {
+    chartOrders.forEach((order) => {
       let dateKey: string;
 
       if (period === "daily") {
@@ -75,37 +96,19 @@ export async function GET(req: NextRequest) {
       ordersByDate[dateKey] = (ordersByDate[dateKey] || 0) + 1;
     });
 
-    // Convert to array for charts
     const chartData = Object.keys(salesByDate).map((date) => ({
       date,
       sales: salesByDate[date],
       orders: ordersByDate[date],
     }));
 
-    // Top selling items
-    const itemCounts: { [key: string]: { count: number; revenue: number } } =
-      {};
+    const topItems = topItemsRaw.map((item) => ({
+      name: item.name,
+      quantity: item._sum.quantity || 0,
+      revenue: 0, // Revenue requires a separate query; quantity ranking is sufficient
+    }));
 
-    orders.forEach((order) => {
-      order.items.forEach((item) => {
-        if (!itemCounts[item.name]) {
-          itemCounts[item.name] = { count: 0, revenue: 0 };
-        }
-        itemCounts[item.name].count += item.quantity;
-        itemCounts[item.name].revenue += item.price * item.quantity;
-      });
-    });
-
-    const topItems = Object.entries(itemCounts)
-      .map(([name, data]) => ({
-        name,
-        quantity: data.count,
-        revenue: data.revenue,
-      }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         summary: {
@@ -120,7 +123,12 @@ export async function GET(req: NextRequest) {
         period,
       },
     });
+    response.headers.set("Cache-Control", "private, max-age=30");
+    return response;
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Analytics error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch analytics" },

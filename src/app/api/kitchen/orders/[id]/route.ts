@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, handleAuthError } from "@/lib/auth";
 
-// PATCH - Update order status (legacy: mark as delivered)
-// Kept for backward compatibility with counter page
+// PATCH - Update order status (KITCHEN/ADMIN only)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth(request, { roles: ["KITCHEN", "ADMIN"] });
+
     const { id } = await params;
     const body = await request.json();
     const { status } = body;
@@ -26,6 +28,9 @@ export async function PATCH(
       data: order,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Update order error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update order" },

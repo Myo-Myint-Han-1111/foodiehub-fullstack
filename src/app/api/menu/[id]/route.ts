@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Category } from "@prisma/client";
+import { requireAuth, handleAuthError } from "@/lib/auth";
 
 // GET single menu item
 export async function GET(
@@ -35,12 +36,14 @@ export async function GET(
   }
 }
 
-// PATCH (update) menu item
+// PATCH (update) menu item (ADMIN only)
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth(request, { roles: ["ADMIN"] });
+
     // ✅ Await params in Next.js 15
     const { id } = await context.params;
 
@@ -122,6 +125,9 @@ export async function PATCH(
       data: updatedItem,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("PATCH menu item error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update menu item" },
@@ -130,12 +136,14 @@ export async function PATCH(
   }
 }
 
-// DELETE menu item
+// DELETE menu item (ADMIN only)
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth(request, { roles: ["ADMIN"] });
+
     // ✅ Await params in Next.js 15
     const { id } = await context.params;
 
@@ -161,6 +169,9 @@ export async function DELETE(
       message: "Menu item deleted successfully",
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("DELETE menu item error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to delete menu item" },

@@ -73,6 +73,7 @@ model Order {
   @@index([status])
   @@index([tableNumber])
   @@index([createdAt])
+  @@index([createdById])
 }
 
 model OrderSet {
@@ -116,6 +117,7 @@ model OrderItem {
   @@index([orderId])
   @@index([setId])
   @@index([itemStatus])
+  @@index([menuItemId])
 }
 
 model OrderLog {
@@ -134,6 +136,8 @@ model OrderLog {
 
   @@index([orderId])
   @@index([createdAt])
+  @@index([performedById])
+  @@index([approvedById])
 }
 
 model ActionRequest {
@@ -169,6 +173,8 @@ model Address {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
+
+  @@index([userId])
 }
 
 enum Role {

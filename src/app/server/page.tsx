@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import RoleGuard from "@/components/RoleGuard";
 import { apiFetch } from "@/lib/api-client";
+import { useCachedFetch, invalidateCache } from "@/lib/use-cached-fetch";
 import {
   Plus,
   Minus,
@@ -118,8 +119,6 @@ function ServerPageContent() {
   const { toast } = useToast();
 
   // Menu state
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [menuLoading, setMenuLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
 
   // New Order form state
@@ -128,9 +127,7 @@ function ServerPageContent() {
   const [cart, setCart] = useState<CartEntry[]>([]);
   const [creating, setCreating] = useState(false);
 
-  // Orders state
-  const [orders, setOrders] = useState<OrderData[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  // Orders state (no longer needed as state)
 
   // Reject dialog
   const [rejectDialog, setRejectDialog] = useState<{
@@ -228,46 +225,38 @@ function ServerPageContent() {
 
   // ---------- Data Fetching ----------
 
-  const fetchMenu = useCallback(async () => {
-    try {
-      const res = await fetch("/api/menu");
-      const data = await res.json();
-      if (data.success) setMenuItems(data.data);
-    } catch {
-      toast({ title: "Connection issue", description: "Could not load menu. Please refresh.", variant: "destructive" });
-    } finally {
-      setMenuLoading(false);
-    }
-  }, [toast]);
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/server/orders");
-      const data = await res.json();
-      if (data.success) {
-        const newOrders: OrderData[] = data.data;
-        // Notify for newly-ready sets
-        const readyCount = newOrders.reduce(
-          (c, o) => c + o.sets.filter((s) => s.status === "READY").length, 0
-        );
-        if (prevReadyCountRef.current > 0 && readyCount > prevReadyCountRef.current) {
-          if (soundInitializedRef.current && audioRef.current) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => {});
-          }
-          toast({ title: "Set is ready!", description: "A set is ready to be served.", variant: "success" });
-        }
-        prevReadyCountRef.current = readyCount;
-        setOrders(newOrders);
+  const handleOrderData = useCallback((newData: unknown, prevData: unknown | null) => {
+    if (!prevData) return;
+    const newOrders = newData as OrderData[];
+    const readyCount = newOrders.reduce(
+      (c, o) => c + o.sets.filter((s) => s.status === "READY").length, 0
+    );
+    if (prevReadyCountRef.current > 0 && readyCount > prevReadyCountRef.current) {
+      if (soundInitializedRef.current && audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
       }
-    } catch { /* silent */ }
-    finally { setOrdersLoading(false); }
-  }, [toast]);
+      toastRef.current({ title: "Set is ready!", description: "A set is ready to be served.", variant: "success" });
+    }
+    prevReadyCountRef.current = readyCount;
+  }, []);
 
-  useEffect(() => { fetchMenu(); fetchOrders(); }, [fetchMenu, fetchOrders]);
-  useEffect(() => {
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
+  const { data: menuItems, isLoading: menuLoading } = useCachedFetch<MenuItem[]>(
+    "/api/menu",
+    { maxAge: 60000 }
+  );
+
+  const { data: orders, isLoading: ordersLoading, refresh: fetchOrders } = useCachedFetch<OrderData[]>(
+    "/api/server/orders",
+    { pollInterval: 10000, maxAge: 5000, onData: handleOrderData }
+  );
+
+  const refreshOrders = useCallback(() => {
+    invalidateCache("/api/server/orders");
+    return fetchOrders();
   }, [fetchOrders]);
 
   // ---------- Cart Helpers ----------
@@ -317,7 +306,7 @@ function ServerPageContent() {
       const data = await res.json();
       if (data.success) {
         toast({ title: "Order created!", description: sendToKitchen ? `Order #${data.data.orderNumber} has been sent to kitchen.` : `Order #${data.data.orderNumber} saved as draft.`, variant: "success" });
-        resetForm(); fetchOrders();
+        resetForm(); refreshOrders();
       } else { toast({ title: "Could not create order", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not create order. Please try again.", variant: "destructive" }); }
     finally { setCreating(false); }
@@ -327,7 +316,7 @@ function ServerPageContent() {
     try {
       const res = await apiFetch(`/api/server/orders/${orderId}/approve`, { method: "PATCH" });
       const data = await res.json();
-      if (data.success) { toast({ title: "Order approved!", description: "Order has been sent to kitchen.", variant: "success" }); fetchOrders(); }
+      if (data.success) { toast({ title: "Order approved!", description: "Order has been sent to kitchen.", variant: "success" }); refreshOrders(); }
       else { toast({ title: "Could not approve", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not approve the order. Please try again.", variant: "destructive" }); }
   };
@@ -338,7 +327,7 @@ function ServerPageContent() {
     try {
       const res = await apiFetch(`/api/server/orders/${rejectDialog.orderId}/reject`, { method: "PATCH", body: JSON.stringify({ reason: rejectReason.trim() }) });
       const data = await res.json();
-      if (data.success) { toast({ title: "Order rejected", description: "The QR order has been rejected.", variant: "success" }); setRejectDialog({ open: false, orderId: "" }); setRejectReason(""); fetchOrders(); }
+      if (data.success) { toast({ title: "Order rejected", description: "The QR order has been rejected.", variant: "success" }); setRejectDialog({ open: false, orderId: "" }); setRejectReason(""); refreshOrders(); }
       else { toast({ title: "Could not reject", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not reject the order. Please try again.", variant: "destructive" }); }
     finally { setRejecting(false); }
@@ -348,7 +337,7 @@ function ServerPageContent() {
     try {
       const res = await apiFetch(`/api/server/orders/${orderId}/sets/${setId}/send`, { method: "PATCH" });
       const data = await res.json();
-      if (data.success) { toast({ title: "Sent to kitchen!", description: "Set has been sent to the kitchen.", variant: "success" }); fetchOrders(); }
+      if (data.success) { toast({ title: "Sent to kitchen!", description: "Set has been sent to the kitchen.", variant: "success" }); refreshOrders(); }
       else { toast({ title: "Could not send", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not send the set. Please try again.", variant: "destructive" }); }
   };
@@ -357,7 +346,7 @@ function ServerPageContent() {
     try {
       const res = await apiFetch(`/api/server/orders/${orderId}/sets/${setId}/serve`, { method: "PATCH" });
       const data = await res.json();
-      if (data.success) { toast({ title: "Marked as served!", description: "The set has been served to the table.", variant: "success" }); fetchOrders(); }
+      if (data.success) { toast({ title: "Marked as served!", description: "The set has been served to the table.", variant: "success" }); refreshOrders(); }
       else { toast({ title: "Could not update", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not mark the set as served. Please try again.", variant: "destructive" }); }
   };
@@ -366,7 +355,7 @@ function ServerPageContent() {
     try {
       const res = await apiFetch(`/api/server/orders/${orderId}/ready-to-pay`, { method: "PATCH" });
       const data = await res.json();
-      if (data.success) { toast({ title: "Ready to pay!", description: "Order has been sent to the counter.", variant: "success" }); fetchOrders(); }
+      if (data.success) { toast({ title: "Ready to pay!", description: "Order has been sent to the counter.", variant: "success" }); refreshOrders(); }
       else { toast({ title: "Could not update", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not update the order. Please try again.", variant: "destructive" }); }
   };
@@ -382,7 +371,7 @@ function ServerPageContent() {
       const data = await res.json();
       if (data.success) {
         toast({ title: "Set added!", description: sendToKitchen ? "New set has been sent to kitchen." : "New set saved as draft.", variant: "success" });
-        setAddSetDialog({ open: false, orderId: "", orderNumber: 0 }); setAddSetCart([]); setAddSetCategory("ALL"); fetchOrders();
+        setAddSetDialog({ open: false, orderId: "", orderNumber: 0 }); setAddSetCart([]); setAddSetCategory("ALL"); refreshOrders();
       } else { toast({ title: "Could not add set", description: data.error || "Something went wrong. Please try again.", variant: "destructive" }); }
     } catch { toast({ title: "Something went wrong", description: "Could not add the set. Please try again.", variant: "destructive" }); }
     finally { setAddingSet(false); }
@@ -507,7 +496,7 @@ function ServerPageContent() {
         setEditSetDialog({ open: false, orderId: "", orderNumber: 0, set: null });
         setEditChanges([]);
         setEditReason("");
-        fetchOrders();
+        refreshOrders();
       } else {
         toast({ title: "Could not save", description: data.error || "Something went wrong. Please try again.", variant: "destructive" });
       }
@@ -547,7 +536,7 @@ function ServerPageContent() {
         setRequestDialog({ open: false, orderId: "", orderNumber: 0, item: null, setStatus: "" });
         setRequestReason("");
         setRequestNewMenuItemId("");
-        fetchOrders();
+        refreshOrders();
       } else {
         toast({ title: "Could not submit", description: data.error || "Something went wrong. Please try again.", variant: "destructive" });
       }
@@ -590,7 +579,7 @@ function ServerPageContent() {
         toast({ title: `${label} cancelled`, description: `The ${label.toLowerCase()} has been cancelled.`, variant: "success" });
         setCancelDialog({ open: false, type: "set", orderId: "", orderNumber: 0 });
         setCancelReason("");
-        fetchOrders();
+        refreshOrders();
       } else {
         toast({ title: "Could not cancel", description: data.error || "Something went wrong. Please try again.", variant: "destructive" });
       }
@@ -642,17 +631,20 @@ function ServerPageContent() {
 
   // ---------- Derived Data ----------
 
-  const filteredMenu = selectedCategory === "ALL" ? menuItems.filter((m) => m.available) : menuItems.filter((m) => m.category === selectedCategory && m.available);
-  const addSetFilteredMenu = addSetCategory === "ALL" ? menuItems.filter((m) => m.available) : menuItems.filter((m) => m.category === addSetCategory && m.available);
-  const editFilteredMenu = editCategory === "ALL" ? menuItems.filter((m) => m.available) : menuItems.filter((m) => m.category === editCategory && m.available);
+  const allMenuItems = menuItems || [];
+  const allOrders = orders || [];
 
-  const qrOrders = orders.filter((o) => o.createdById === null && o.status !== "CANCELLED" && o.sets.some((s) => s.status === "DRAFT"));
+  const filteredMenu = selectedCategory === "ALL" ? allMenuItems.filter((m) => m.available) : allMenuItems.filter((m) => m.category === selectedCategory && m.available);
+  const addSetFilteredMenu = addSetCategory === "ALL" ? allMenuItems.filter((m) => m.available) : allMenuItems.filter((m) => m.category === addSetCategory && m.available);
+  const editFilteredMenu = editCategory === "ALL" ? allMenuItems.filter((m) => m.available) : allMenuItems.filter((m) => m.category === editCategory && m.available);
+
+  const qrOrders = allOrders.filter((o) => o.createdById === null && o.status !== "CANCELLED" && o.sets.some((s) => s.status === "DRAFT"));
 
   const readySets: { set: OrderSetData; order: OrderData }[] = [];
-  orders.forEach((o) => o.sets.filter((s) => s.status === "READY").forEach((s) => readySets.push({ set: s, order: o })));
+  allOrders.forEach((o) => o.sets.filter((s) => s.status === "READY").forEach((s) => readySets.push({ set: s, order: o })));
   readySets.sort((a, b) => new Date(a.set.readyAt || 0).getTime() - new Date(b.set.readyAt || 0).getTime());
 
-  const activeOrders = orders.filter((o) => o.status !== "CANCELLED" && o.status !== "CLOSED");
+  const activeOrders = allOrders.filter((o) => o.status !== "CANCELLED" && o.status !== "CLOSED");
 
   // Table overview: group active dine-in orders by table
   const tableMap = new Map<string, OrderData[]>();
@@ -807,7 +799,7 @@ function ServerPageContent() {
             <div>
               <h1 className="text-3xl font-bold">Manage Tables & Orders</h1>
             </div>
-            <Button onClick={() => fetchOrders()} variant="secondary" size="icon" className="h-10 w-10">
+            <Button onClick={() => refreshOrders()} variant="secondary" size="icon" className="h-10 w-10">
               <RefreshCw className="h-5 w-5" />
             </Button>
           </div>
@@ -1364,7 +1356,7 @@ function ServerPageContent() {
                 <Select value={requestNewMenuItemId} onValueChange={setRequestNewMenuItemId}>
                   <SelectTrigger><SelectValue placeholder="Select replacement..." /></SelectTrigger>
                   <SelectContent>
-                    {menuItems.filter((m) => m.available && m.id !== requestDialog.item?.menuItemId).map((m) => (
+                    {allMenuItems.filter((m) => m.available && m.id !== requestDialog.item?.menuItemId).map((m) => (
                       <SelectItem key={m.id} value={m.id}>{m.name} — ฿{m.price}</SelectItem>
                     ))}
                   </SelectContent>

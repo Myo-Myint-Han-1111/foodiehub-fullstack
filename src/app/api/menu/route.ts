@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Category } from "@prisma/client";
+import { requireAuth, handleAuthError } from "@/lib/auth";
 
 // GET all menu items
 export async function GET() {
@@ -11,10 +12,15 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: menuItems,
     });
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+    return response;
   } catch (error) {
     console.error("Get menu items error:", error);
     return NextResponse.json(
@@ -24,9 +30,11 @@ export async function GET() {
   }
 }
 
-// POST - Create new menu item
+// POST - Create new menu item (ADMIN only)
 export async function POST(req: NextRequest) {
   try {
+    await requireAuth(req, { roles: ["ADMIN"] });
+
     const {
       name,
       description,
@@ -85,6 +93,9 @@ export async function POST(req: NextRequest) {
       data: menuItem,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Create menu item error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to create menu item" },

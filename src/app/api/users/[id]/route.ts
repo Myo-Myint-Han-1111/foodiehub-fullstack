@@ -2,16 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
+import { requireAuth, handleAuthError } from "@/lib/auth";
+import { userUpdateSchema } from "@/lib/validations";
 
-// PATCH - Update user
+// PATCH - Update user (ADMIN only)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth(req, { roles: ["ADMIN"] });
+
     const { id } = await params;
     const body = await req.json();
-    const { email, password, name, phone, role } = body;
+
+    const parsed = userUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.issues[0]?.message || "Invalid input" },
+        { status: 400 }
+      );
+    }
+
+    const { email, password, name, phone, role } = parsed.data;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -77,6 +90,9 @@ export async function PATCH(
       data: updatedUser,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Update user error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update user" },
@@ -85,12 +101,14 @@ export async function PATCH(
   }
 }
 
-// DELETE - Delete user
+// DELETE - Delete user (ADMIN only)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth(req, { roles: ["ADMIN"] });
+
     const { id } = await params;
 
     // Check if user exists
@@ -115,6 +133,9 @@ export async function DELETE(
       message: "User deleted successfully",
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Delete user error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to delete user" },

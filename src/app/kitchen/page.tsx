@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import RoleGuard from "@/components/RoleGuard";
 import { apiFetch } from "@/lib/api-client";
+import { useCachedFetch, invalidateCache } from "@/lib/use-cached-fetch";
 
 // ---------- Types ----------
 
@@ -56,8 +57,6 @@ interface KitchenSet {
 // ---------- Component ----------
 
 function KitchenPageContent() {
-  const [sets, setSets] = useState<KitchenSet[]>([]);
-  const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { toast } = useToast();
 
@@ -66,6 +65,8 @@ function KitchenPageContent() {
   const [modifiedSetIds, setModifiedSetIds] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const soundInitializedRef = useRef(false);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
 
   // Initialize audio
   useEffect(() => {
@@ -102,90 +103,75 @@ function KitchenPageContent() {
   }, []);
 
   const playNotificationSound = useCallback(() => {
-    if (soundEnabled && audioRef.current && soundInitializedRef.current) {
+    if (soundEnabledRef.current && audioRef.current && soundInitializedRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     }
-  }, [soundEnabled]);
+  }, []);
 
-  const fetchSets = useCallback(async () => {
-    try {
-      const response = await fetch("/api/kitchen/orders");
-      const data = await response.json();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
-      if (data.success) {
-        const newSets: KitchenSet[] = data.data;
+  const handleNewData = useCallback(
+    (newData: unknown, prevData: unknown | null) => {
+      const newSets = newData as KitchenSet[];
+      if (!prevData) return; // First load, skip notifications
 
-        // Check for new PENDING sets
-        const newPendingIds = new Set(
-          newSets.filter((s) => s.status === "PENDING").map((s) => s.id)
+      // Check for new PENDING sets
+      const newPendingIds = new Set(
+        newSets.filter((s) => s.status === "PENDING").map((s) => s.id)
+      );
+      if (previousPendingIdsRef.current.size > 0) {
+        const brandNew = [...newPendingIds].filter(
+          (id) => !previousPendingIdsRef.current.has(id)
         );
-        if (previousPendingIdsRef.current.size > 0) {
-          const brandNew = [...newPendingIds].filter(
-            (id) => !previousPendingIdsRef.current.has(id)
-          );
-          if (brandNew.length > 0) {
-            playNotificationSound();
-            const newSet = newSets.find((s) => s.id === brandNew[0]);
-            if (newSet) {
-              toast({
-                title: "New order received!",
-                description: `Order #${newSet.order.orderNumber} Set ${newSet.setNumber} is ready to prepare.`,
-                variant: "success",
-              });
-            }
+        if (brandNew.length > 0) {
+          playNotificationSound();
+          const newSet = newSets.find((s) => s.id === brandNew[0]);
+          if (newSet) {
+            toastRef.current({
+              title: "New order received!",
+              description: `Order #${newSet.order.orderNumber} Set ${newSet.setNumber} is ready to prepare.`,
+              variant: "success",
+            });
           }
         }
-        previousPendingIdsRef.current = newPendingIds;
-
-        // Check for modified sets (updatedAt changed for existing sets)
-        if (setTimestampsRef.current.size > 0) {
-          const modified = new Set<string>();
-          for (const set of newSets) {
-            const prev = setTimestampsRef.current.get(set.id);
-            if (prev && prev !== set.updatedAt) {
-              modified.add(set.id);
-              playNotificationSound();
-              toast({
-                title: "Heads up — Set Updated",
-                description: `Order #${set.order.orderNumber} Set ${set.setNumber} has been modified. Please check the updated items.`,
-              });
-            }
-          }
-          if (modified.size > 0) {
-            setModifiedSetIds(modified);
-            // Clear modified indicator after 15 seconds
-            setTimeout(() => setModifiedSetIds(new Set()), 15000);
-          }
-        }
-        // Store current timestamps
-        const newTimestamps = new Map<string, string>();
-        for (const set of newSets) {
-          newTimestamps.set(set.id, set.updatedAt);
-        }
-        setTimestampsRef.current = newTimestamps;
-
-        setSets(newSets);
       }
-    } catch {
-      toast({
-        title: "Connection issue",
-        description: "Could not load orders. Will retry shortly.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast, playNotificationSound]);
+      previousPendingIdsRef.current = newPendingIds;
 
-  useEffect(() => {
-    fetchSets();
-  }, [fetchSets]);
+      // Check for modified sets (updatedAt changed for existing sets)
+      if (setTimestampsRef.current.size > 0) {
+        const modified = new Set<string>();
+        for (const set of newSets) {
+          const prev = setTimestampsRef.current.get(set.id);
+          if (prev && prev !== set.updatedAt) {
+            modified.add(set.id);
+            playNotificationSound();
+            toastRef.current({
+              title: "Heads up — Set Updated",
+              description: `Order #${set.order.orderNumber} Set ${set.setNumber} has been modified. Please check the updated items.`,
+            });
+          }
+        }
+        if (modified.size > 0) {
+          setModifiedSetIds(modified);
+          setTimeout(() => setModifiedSetIds(new Set()), 15000);
+        }
+      }
+      // Store current timestamps
+      const newTimestamps = new Map<string, string>();
+      for (const set of newSets) {
+        newTimestamps.set(set.id, set.updatedAt);
+      }
+      setTimestampsRef.current = newTimestamps;
+    },
+    [playNotificationSound]
+  );
 
-  useEffect(() => {
-    const interval = setInterval(fetchSets, 10000);
-    return () => clearInterval(interval);
-  }, [fetchSets]);
+  const { data: sets, isLoading: loading, refresh: fetchSets } = useCachedFetch<KitchenSet[]>(
+    "/api/kitchen/orders",
+    { pollInterval: 10000, maxAge: 5000, onData: handleNewData }
+  );
 
   // ---------- Actions ----------
 
@@ -206,6 +192,7 @@ function KitchenPageContent() {
       if (data.success) {
         const label = newStatus === "PREPARING" ? "Preparing" : "Ready";
         toast({ title: `Marked as ${label}`, description: `Set has been updated successfully.`, variant: "success" });
+        invalidateCache("/api/kitchen/orders");
         fetchSets();
       } else {
         toast({
@@ -225,9 +212,10 @@ function KitchenPageContent() {
 
   // ---------- Derived ----------
 
-  const pendingSets = sets.filter((s) => s.status === "PENDING");
-  const preparingSets = sets.filter((s) => s.status === "PREPARING");
-  const readySets = sets.filter((s) => s.status === "READY");
+  const allSets = sets || [];
+  const pendingSets = allSets.filter((s) => s.status === "PENDING");
+  const preparingSets = allSets.filter((s) => s.status === "PREPARING");
+  const readySets = allSets.filter((s) => s.status === "READY");
 
   // ---------- Helpers ----------
 

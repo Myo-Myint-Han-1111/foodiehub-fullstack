@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Plus, Minus, AlertCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useCachedFetch } from "@/lib/use-cached-fetch";
 
 const categories = [
   { id: "ALL", label: "All" },
@@ -25,15 +26,17 @@ const categories = [
 ];
 
 export default function MenuPage() {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [loading, setLoading] = useState(true);
   const [hasValidSession, setHasValidSession] = useState(false);
   const router = useRouter();
 
   const { items, addItem, updateQuantity, itemCount, total } = useCart();
   const { toast } = useToast();
+
+  const { data: menuItems, isLoading: loading } = useCachedFetch<MenuItem[]>(
+    "/api/menu",
+    { maxAge: 60000 }
+  );
 
   // Check for valid QR session
   useEffect(() => {
@@ -46,40 +49,11 @@ export default function MenuPage() {
     }
   }, []);
 
-  const fetchMenuItems = useCallback(async () => {
-    try {
-      const response = await fetch("/api/menu");
-      const data = await response.json();
-      if (data.success) {
-        setMenuItems(data.data);
-        setFilteredItems(data.data);
-      }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to load menu items",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  const filterItems = useCallback(() => {
-    let filtered = menuItems;
-    if (selectedCategory !== "ALL") {
-      filtered = filtered.filter((item) => item.category === selectedCategory);
-    }
-    setFilteredItems(filtered);
+  const filteredItems = useMemo(() => {
+    const allItems = menuItems || [];
+    if (selectedCategory === "ALL") return allItems;
+    return allItems.filter((item) => item.category === selectedCategory);
   }, [menuItems, selectedCategory]);
-
-  useEffect(() => {
-    fetchMenuItems();
-  }, [fetchMenuItems]);
-
-  useEffect(() => {
-    filterItems();
-  }, [filterItems]);
 
   function handleAdd(item: MenuItem) {
     addItem(item);
@@ -194,7 +168,7 @@ export default function MenuPage() {
                       alt={item.name}
                       fill
                       className="object-cover"
-                      unoptimized
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                     />
                     {!item.available && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

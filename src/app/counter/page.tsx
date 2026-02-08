@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import RoleGuard from "@/components/RoleGuard";
 import { apiFetch } from "@/lib/api-client";
+import { useCachedFetch, invalidateCache } from "@/lib/use-cached-fetch";
 
 // ---------- Types ----------
 
@@ -65,9 +66,7 @@ interface OrderData {
 // ---------- Component ----------
 
 function CounterPageContent() {
-  const [orders, setOrders] = useState<OrderData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { toast } = useToast();
 
@@ -82,6 +81,8 @@ function CounterPageContent() {
   const previousCountRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const soundInitializedRef = useRef(false);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
 
   useEffect(() => {
     audioRef.current = new Audio("/notification.wav");
@@ -103,35 +104,27 @@ function CounterPageContent() {
     };
   }, []);
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      const response = await apiFetch("/api/counter/orders");
-      const data = await response.json();
-      if (data.success) {
-        const newOrders: OrderData[] = data.data;
-        const awaitingCount = newOrders.filter((o) => o.status === "READY_TO_PAY" && !o.paid).length;
-        if (previousCountRef.current > 0 && awaitingCount > previousCountRef.current) {
-          if (soundEnabled && audioRef.current && soundInitializedRef.current) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => {});
-          }
-          toast({ title: "New order is ready!", description: "An order is waiting for payment.", variant: "success" });
-        }
-        previousCountRef.current = awaitingCount;
-        setOrders(newOrders);
-      }
-    } catch {
-      toast({ title: "Connection issue", description: "Could not load orders. Will retry shortly.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast, soundEnabled]);
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
-  useEffect(() => {
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
-  }, [fetchOrders]);
+  const handleNewData = useCallback((newData: unknown, prevData: unknown | null) => {
+    if (!prevData) return;
+    const newOrders = newData as OrderData[];
+    const awaitingCount = newOrders.filter((o) => o.status === "READY_TO_PAY" && !o.paid).length;
+    if (previousCountRef.current > 0 && awaitingCount > previousCountRef.current) {
+      if (soundEnabledRef.current && audioRef.current && soundInitializedRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      }
+      toastRef.current({ title: "New order is ready!", description: "An order is waiting for payment.", variant: "success" });
+    }
+    previousCountRef.current = awaitingCount;
+  }, []);
+
+  const { data: orders, isLoading: loading, refresh: fetchOrders } = useCachedFetch<OrderData[]>(
+    "/api/counter/orders",
+    { pollInterval: 10000, maxAge: 5000, onData: handleNewData }
+  );
 
   // ---------- Actions ----------
 
@@ -147,6 +140,7 @@ function CounterPageContent() {
       if (data.success) {
         toast({ title: "Payment successful!", description: `Order #${payDialog.order.orderNumber} has been paid via ${paymentMethod}.`, variant: "success" });
         setPayDialog({ open: false, order: null });
+        invalidateCache("/api/counter/orders");
         fetchOrders();
       } else {
         toast({ title: "Payment could not be processed", description: data.error || "Please try again.", variant: "destructive" });
@@ -160,8 +154,9 @@ function CounterPageContent() {
 
   // ---------- Derived ----------
 
-  const awaitingOrders = orders.filter((o) => o.status === "READY_TO_PAY" && !o.paid);
-  const paidOrders = orders.filter((o) => o.paid);
+  const allOrders = orders || [];
+  const awaitingOrders = allOrders.filter((o) => o.status === "READY_TO_PAY" && !o.paid);
+  const paidOrders = allOrders.filter((o) => o.paid);
 
   const filteredAwaiting = searchQuery
     ? awaitingOrders.filter((o) =>

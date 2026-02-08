@@ -3,13 +3,13 @@ import { z } from "zod";
 // Auth Schemas
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   phone: z.string().optional(),
 });
 
@@ -34,6 +34,21 @@ export const createOrderSchema = z.object({
   addressId: z.string(),
 });
 
+// QR Order Schema (public-facing orders from QR code)
+export const qrOrderSchema = z.object({
+  orderType: z.enum(["dine-in", "takeaway"]),
+  tableNumber: z.string().optional(),
+  items: z
+    .array(
+      z.object({
+        menuItemId: z.string().min(1, "Menu item ID is required"),
+        name: z.string().min(1),
+        quantity: z.number().int().min(1).max(100),
+      })
+    )
+    .min(1, "Order must contain at least one item"),
+});
+
 // Menu Item Schema
 export const menuItemSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -54,8 +69,28 @@ export const menuItemSchema = z.object({
   available: z.boolean().optional(),
 });
 
+// User management schemas (admin)
+export const userCreateSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().optional(),
+  role: z.enum(["CUSTOMER", "SERVER", "KITCHEN", "COUNTER", "ADMIN"]).optional(),
+});
+
+export const userUpdateSchema = z.object({
+  email: z.string().email("Invalid email address").optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+  name: z.string().min(2, "Name must be at least 2 characters").optional(),
+  phone: z.string().nullable().optional(),
+  role: z.enum(["CUSTOMER", "SERVER", "KITCHEN", "COUNTER", "ADMIN"]).optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type AddressInput = z.infer<typeof addressSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type MenuItemInput = z.infer<typeof menuItemSchema>;
+export type QrOrderInput = z.infer<typeof qrOrderSchema>;
+export type UserCreateInput = z.infer<typeof userCreateSchema>;
+export type UserUpdateInput = z.infer<typeof userUpdateSchema>;

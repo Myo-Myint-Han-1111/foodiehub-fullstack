@@ -167,7 +167,7 @@ export async function GET(req: NextRequest) {
       orderCount: item._count.id,
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         period,
@@ -207,6 +207,8 @@ export async function GET(req: NextRequest) {
         })),
       },
     });
+    response.headers.set("Cache-Control", "private, max-age=30");
+    return response;
   } catch (error) {
     if (error instanceof Error && error.name === "AuthError") {
       return handleAuthError(error);

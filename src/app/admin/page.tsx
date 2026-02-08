@@ -24,6 +24,7 @@ import { UserPlus, Edit, Trash2, Users, AlertTriangle, Check, X, RefreshCw, Cloc
 import RoleGuard from "@/components/RoleGuard";
 import { useToast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
+import { useCachedFetch, invalidateCache } from "@/lib/use-cached-fetch";
 
 interface User {
   id: string;
@@ -105,15 +106,9 @@ const STAFF_ROLES = [
 
 function AdminPageContent() {
   const [activeTab, setActiveTab] = useState<"staff" | "approvals" | "reports">("staff");
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
-
-  // Approval queue state
-  const [requests, setRequests] = useState<ActionRequestData[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(true);
 
   // Reports state
   const [reportData, setReportData] = useState<ReportData | null>(null);
@@ -130,37 +125,15 @@ function AdminPageContent() {
     role: "KITCHEN",
   });
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      const response = await fetch("/api/users");
-      const data = await response.json();
-      if (data.success) {
-        setUsers(data.data);
-      }
-    } catch {
-      toast({
-        title: "Connection issue",
-        description: "Could not load users. Please refresh the page.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const { data: users, isLoading: loading, refresh: fetchUsers } = useCachedFetch<User[]>(
+    "/api/users",
+    { maxAge: 15000 }
+  );
 
-  const fetchRequests = useCallback(async () => {
-    try {
-      const response = await apiFetch("/api/admin/requests");
-      const data = await response.json();
-      if (data.success) {
-        setRequests(data.data);
-      }
-    } catch {
-      // silent
-    } finally {
-      setRequestsLoading(false);
-    }
-  }, []);
+  const { data: requests, isLoading: requestsLoading, refresh: fetchRequests } = useCachedFetch<ActionRequestData[]>(
+    "/api/admin/requests",
+    { pollInterval: 10000, maxAge: 5000 }
+  );
 
   const fetchReports = useCallback(async () => {
     setReportLoading(true);
@@ -182,16 +155,6 @@ function AdminPageContent() {
   }, [reportPeriod, reportCustomDate]);
 
   useEffect(() => {
-    fetchUsers();
-    fetchRequests();
-  }, [fetchUsers, fetchRequests]);
-
-  useEffect(() => {
-    const interval = setInterval(fetchRequests, 10000);
-    return () => clearInterval(interval);
-  }, [fetchRequests]);
-
-  useEffect(() => {
     if (activeTab === "reports") {
       fetchReports();
     }
@@ -203,6 +166,7 @@ function AdminPageContent() {
       const data = await response.json();
       if (data.success) {
         toast({ title: "Request approved!", description: "The request has been approved and applied.", variant: "success" });
+        invalidateCache("/api/admin/requests");
         fetchRequests();
       } else {
         toast({ title: "Could not approve", description: data.error || "Something went wrong. Please try again.", variant: "destructive" });
@@ -218,6 +182,7 @@ function AdminPageContent() {
       const data = await response.json();
       if (data.success) {
         toast({ title: "Request denied", description: "The request has been denied.", variant: "success" });
+        invalidateCache("/api/admin/requests");
         fetchRequests();
       } else {
         toast({ title: "Could not deny", description: data.error || "Something went wrong. Please try again.", variant: "destructive" });
@@ -273,6 +238,7 @@ function AdminPageContent() {
           variant: "success",
         });
         setDialogOpen(false);
+        invalidateCache("/api/users");
         fetchUsers();
       } else {
         toast({
@@ -306,6 +272,7 @@ function AdminPageContent() {
           description: "The staff member has been removed.",
           variant: "success",
         });
+        invalidateCache("/api/users");
         fetchUsers();
       } else {
         toast({
@@ -349,7 +316,7 @@ function AdminPageContent() {
   }
 
   // ✅ Filter out CUSTOMER role from stats (they shouldn't be in user management)
-  const staffUsers = users.filter((u) => u.role !== "CUSTOMER");
+  const staffUsers = (users || []).filter((u) => u.role !== "CUSTOMER");
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
@@ -395,8 +362,8 @@ function AdminPageContent() {
           </Button>
           <Button onClick={() => setActiveTab("approvals")} variant={activeTab === "approvals" ? "default" : "outline"} className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />Approvals
-            {requests.length > 0 && (
-              <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5">{requests.length}</Badge>
+            {(requests || []).length > 0 && (
+              <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5">{(requests || []).length}</Badge>
             )}
           </Button>
           <Button onClick={() => setActiveTab("reports")} variant={activeTab === "reports" ? "default" : "outline"} className="flex items-center gap-2">
@@ -691,7 +658,7 @@ function AdminPageContent() {
           <div className="max-w-4xl mx-auto space-y-4">
             {requestsLoading ? (
               <div className="text-center py-8 text-gray-500">Loading requests...</div>
-            ) : requests.length === 0 ? (
+            ) : (requests || []).length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <Check className="h-12 w-12 mx-auto text-green-400 mb-3" />
@@ -700,7 +667,7 @@ function AdminPageContent() {
                 </CardContent>
               </Card>
             ) : (
-              requests.map((req) => (
+              (requests || []).map((req) => (
                 <Card key={req.id} className={`border-l-4 ${req.type === "CANCELLATION" ? "border-l-red-400" : "border-l-orange-400"}`}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">

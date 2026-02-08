@@ -5,6 +5,8 @@ import { Role } from "@prisma/client";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
+export const AUTH_COOKIE = "auth_token";
+
 interface TokenPayload {
   userId: string;
   email: string;
@@ -31,7 +33,7 @@ export function signToken(user: { id: string; email: string; role: Role }): stri
   return jwt.sign(
     { userId: user.id, email: user.email, role: user.role } as TokenPayload,
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "1h" }
   );
 }
 
@@ -43,11 +45,36 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
+export function setAuthCookie(response: NextResponse, token: string): void {
+  response.cookies.set(AUTH_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60, // 1 hour
+  });
+}
 
-  const token = authHeader.slice(7);
+export function clearAuthCookie(response: NextResponse): void {
+  response.cookies.set(AUTH_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
+export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
+  // Try cookie first
+  const cookieToken = req.cookies.get(AUTH_COOKIE)?.value;
+  // Fall back to Authorization header
+  const authHeader = req.headers.get("authorization");
+  const headerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  const token = cookieToken || headerToken;
+  if (!token) return null;
+
   const payload = verifyToken(token);
   if (!payload) return null;
 

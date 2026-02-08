@@ -27,11 +27,14 @@ export default function Header() {
   }
 
   const getNavLinks = () => {
-    if (hasQRSession) {
-      return [];
+    if (!user) {
+      return hasQRSession ? [] : [];
     }
 
-    if (!user) return [];
+    // Staff always sees their nav, even if QR session exists
+    if (hasQRSession && user.role === "CUSTOMER") {
+      return [];
+    }
 
     switch (user.role) {
       case "CUSTOMER":
@@ -70,8 +73,7 @@ export default function Header() {
   const navLinks = getNavLinks();
 
   const getLogoLink = () => {
-    if (hasQRSession) return "/menu";
-    if (!user) return "/";
+    if (!user) return hasQRSession ? "/menu" : "/";
 
     switch (user.role) {
       case "CUSTOMER":
@@ -89,15 +91,16 @@ export default function Header() {
     }
   };
 
+  const isStaff = user && user.role !== "CUSTOMER";
+
   const shouldShowCart = () => {
-    if (pathname === "/orders") {
-      return false;
-    }
+    if (isStaff) return false;
+    if (pathname === "/orders") return false;
     return hasQRSession || user?.role === "CUSTOMER";
   };
 
   const shouldShowMobileMenu = () => {
-    if (hasQRSession) return false;
+    if (hasQRSession && !isStaff) return false;
     if (user) return true;
     return false;
   };
@@ -155,7 +158,7 @@ export default function Header() {
             </Link>
           )}
 
-          {user && !hasQRSession && (
+          {user && (isStaff || !hasQRSession) && (
             <>
               <div className="text-right hidden lg:block">
                 <span className="text-sm font-medium block">{user.name}</span>

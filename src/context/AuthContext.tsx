@@ -20,7 +20,6 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -28,71 +27,96 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getCachedUser(): User | null {
+  try {
+    const cached = localStorage.getItem("auth_user");
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch {
+    // Invalid or unavailable localStorage
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Check if user is logged in on mount
+  // Read localStorage cache + background validate via /api/auth/me
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    // Instantly show cached user (client-only, avoids hydration mismatch)
+    const cached = getCachedUser();
+    if (cached) {
+      setUser(cached);
+      setIsLoading(false);
     }
-    if (storedToken) {
-      setToken(storedToken);
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+          localStorage.setItem("auth_user", JSON.stringify(data.user));
+        } else {
+          // Session expired — clear cached user
+          setUser(null);
+          localStorage.removeItem("auth_user");
+        }
+      } catch {
+        // Network error — keep cached user for display, don't redirect
+      } finally {
+        setIsLoading(false);
+      }
     }
-    setIsLoading(false);
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        setUser(data.user);
-        setToken(data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        localStorage.setItem("token", data.token);
+    if (data.success) {
+      setUser(data.user);
+      localStorage.setItem("auth_user", JSON.stringify(data.user));
 
-        // Redirect based on role
-        if (data.user.role === "CUSTOMER") {
-          router.push("/menu");
-        } else if (data.user.role === "SERVER") {
-          router.push("/server");
-        } else if (data.user.role === "KITCHEN") {
-          router.push("/kitchen");
-        } else if (data.user.role === "COUNTER") {
-          router.push("/counter");
-        } else if (data.user.role === "ADMIN") {
-          router.push("/admin");
-        }
-      } else {
-        throw new Error(data.error || "Login failed");
+      // Redirect based on role
+      if (data.user.role === "CUSTOMER") {
+        router.push("/menu");
+      } else if (data.user.role === "SERVER") {
+        router.push("/server");
+      } else if (data.user.role === "KITCHEN") {
+        router.push("/kitchen");
+      } else if (data.user.role === "COUNTER") {
+        router.push("/counter");
+      } else if (data.user.role === "ADMIN") {
+        router.push("/admin");
       }
-    } catch (error) {
-      throw error;
+    } else {
+      throw new Error(data.error || "Login failed");
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Continue with client-side cleanup even if request fails
+    }
     setUser(null);
-    setToken(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+    localStorage.removeItem("auth_user");
     router.push("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

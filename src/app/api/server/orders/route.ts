@@ -42,7 +42,9 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: orders });
+    const response = NextResponse.json({ success: true, data: orders });
+    response.headers.set("Cache-Control", "private, max-age=2");
+    return response;
   } catch (error) {
     return handleAuthError(error);
   }

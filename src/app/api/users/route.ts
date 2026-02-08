@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { requireAuth, handleAuthError } from "@/lib/auth";
+import { userCreateSchema } from "@/lib/validations";
 
-// GET all users
-export async function GET() {
+// GET all users (ADMIN only)
+export async function GET(req: NextRequest) {
   try {
+    await requireAuth(req, { roles: ["ADMIN"] });
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -24,6 +28,9 @@ export async function GET() {
       data: users,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Get users error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch users" },
@@ -32,10 +39,21 @@ export async function GET() {
   }
 }
 
-// POST - Create new user
+// POST - Create new user (ADMIN only)
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, name, phone, role } = await req.json();
+    await requireAuth(req, { roles: ["ADMIN"] });
+
+    const body = await req.json();
+    const parsed = userCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.issues[0]?.message || "Invalid input" },
+        { status: 400 }
+      );
+    }
+
+    const { email, password, name, phone, role } = parsed.data;
 
     // Check if user already exists
     const existing = await prisma.user.findUnique({
@@ -76,6 +94,9 @@ export async function POST(req: NextRequest) {
       data: user,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AuthError") {
+      return handleAuthError(error);
+    }
     console.error("Create user error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to create user" },
